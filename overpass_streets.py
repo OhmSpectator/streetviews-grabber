@@ -74,7 +74,9 @@ def main():
     out skel;
     """
     api = overpy.Overpass()
+    print("Requesting the OSM data... ", end="", flush=True)
     result = api.query(query)
+    print("done!")
 
     ways = result.ways
     if debug:
