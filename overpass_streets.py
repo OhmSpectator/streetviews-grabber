@@ -177,7 +177,7 @@ def main():
                 grab_streetviews(mid_lat, mid_lon, azimuth, images_dir, segment, way.id)
 
     if count_only:
-        print(f"Total images to download: {streeviews_count:d}, the size will be ~ {streeviews_count*0.05859:0.2f} Mb")
+        print(f"Total images to download: {streeviews_count:d}, the size will be ~ {streeviews_count*0.05859*2:0.2f} Mb")
 
 
 main()
