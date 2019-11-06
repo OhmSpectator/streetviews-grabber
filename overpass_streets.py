@@ -82,7 +82,8 @@ def main():
     argparser.add_argument("--city", required=True, help="the city for which street views shall be downloaded. "
                                                          "The name should be written in its original language.")
     argparser.add_argument("--count-only", action="store_true",
-                           help="do not download the images, only count their amount and calculate approximate total size")
+                           help="do not download the images, only count their amount and calculate approximate total "
+                                "size")
     argparser.add_argument("--alternative-server", default="https://lz4.overpass-api.de/api/interpreter",
                            help="alternative server of Overpass API if the main one refuses to handle. Must start with "
                                 "\"http(s)\" and contain the right URL (usually, \"api/interpreter\")")
@@ -142,6 +143,11 @@ def main():
         images_dir = create_download_dir(args.city)
 
     streeviews_count = 0
+
+    if count_only:
+        print("Counting... ", end="", flush=True)
+    else:
+        print("Downloading... ", end="", flush=True)
 
     for way in ways:
         verbose_info(f"Way {way.id:d}")
