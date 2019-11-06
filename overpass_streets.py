@@ -8,9 +8,9 @@ import json
 debug = True
 
 query = """
-area["ISO3166-2"="DE-BE"][admin_level=4];
+area[name="Королёв"];
 (way["highway"](area); >;);
-out;
+out skel;
 """
 
 
