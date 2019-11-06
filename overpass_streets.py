@@ -34,7 +34,7 @@ def streetview_available(lat, lon):
         "key": KEY,
     }
     r = requests.get(google_meta_api_url, params=meta_request_params)
-    verbose_info(f"\t\tStreet View meta request: {r.request.url}")
+    verbose_info(f"\t\t\t\tStreet View meta request: {r.request.url}")
     image_meta = json.loads(r.content)
     if image_meta['status'] != "OK":
         return False
@@ -52,19 +52,19 @@ def grab_streetview(lat, lon, heading, download_dir, filename):
         "heading": f"{heading:f}"
     }
     r = requests.get(google_api_url, params=view_request_params)
-    verbose_info(f"\t\tStreet View request: {r.request.url}")
+    verbose_info(f"\t\t\t\tStreet View request: {r.request.url}")
     full_file = os.path.join(download_dir, filename)
-    verbose_info(f"\t\t\tFile to save: {full_file}")
+    verbose_info(f"\t\t\t\tFile to save: {full_file}")
     open(full_file, 'wb').write(r.content)
 
 
-def grab_streetviews(lat, lon, forward_heading, images_dir, segment, way_id):
+def grab_streetviews(lat, lon, forward_heading, images_dir, id, way_id):
     heading_left = forward_heading - 90
-    filename = f"{way_id:d}-{segment:d}-left.jpeg"
+    filename = f"{id:d}-{way_id:d}-left.jpeg"
     grab_streetview(lat, lon, heading_left, images_dir, filename)
 
     heading_right = forward_heading + 90
-    filename = f"{way_id:d}-{segment:d}-right.jpeg"
+    filename = f"{id:d}-{way_id:d}-right.jpeg"
     grab_streetview(lat, lon, heading_right, images_dir, filename)
 
 
@@ -162,19 +162,20 @@ def main():
             verbose_info(f"\t\tazimuth: {azimuth:f}")
             verbose_info(f"\t\tlength: {length:f}")
 
-            # Count the mid point of the way. Later - switch to a loop for each 10 meters.
-            geodesic_mid = Geodesic.WGS84.Direct(node_start.lat, node_start.lon, azimuth, length/2)
-            mid_lat = geodesic_mid['lat2']
-            mid_lon = geodesic_mid['lon2']
-            verbose_info(f"\t\tmid: {mid_lat:f}, {mid_lon:f}")
-
-            if not streetview_available(mid_lat, mid_lon):
-                continue
-
-            streeviews_count += 1
-
-            if not count_only:
-                grab_streetviews(mid_lat, mid_lon, azimuth, images_dir, segment, way.id)
+            verbose_info("\t\tStepping the segment...")
+            offset = 5
+            while offset < length:
+                shifted_geonode = Geodesic.WGS84.Direct(node_start.lat, node_start.lon, azimuth, offset)
+                curr_lat = shifted_geonode['lat2']
+                curr_lon = shifted_geonode['lon2']
+                verbose_info(f"\t\t\tHave passed {offset:d} meters from the start of the street, "
+                             f"came into {curr_lat:f},{curr_lon:f}")
+                offset += 10
+                if not streetview_available(curr_lat, curr_lon):
+                    continue
+                streeviews_count += 1
+                if not count_only:
+                    grab_streetviews(curr_lat, curr_lon, azimuth, images_dir, streeviews_count, way.id)
 
     if count_only:
         print(f"Total images to download: {streeviews_count:d}, the size will be ~ {streeviews_count*0.05859*2:0.2f} Mb")
