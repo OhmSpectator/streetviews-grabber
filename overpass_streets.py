@@ -82,9 +82,9 @@ def main():
     if debug:
         ways = ways[0:1]
 
-    images_dir = "images"
+    images_dir = os.path.join("images", args.city)
     if not os.path.isdir(images_dir):
-       os.mkdir(images_dir)
+       os.makedirs(images_dir)
 
     for way in ways:
         verbose_info(f"Way {way.id:d}")
