@@ -9,12 +9,6 @@ import argparse
 verbose = False
 debug = False
 
-query = """
-area[name="Королёв"];
-(way["highway"](area); >;);
-out skel;
-"""
-
 
 def verbose_info(*args, **kwargs):
     if verbose:
@@ -65,11 +59,20 @@ def main():
     argparser = argparse.ArgumentParser(description="The script grabs Google Street View for a city.")
     argparser.add_argument("--debug", action="store_true", help="run in debug mode")
     argparser.add_argument("--verbose", action="store_true", help="show info about all the processed points")
+    argparser.add_argument("--city", required=True, help="the city for which street views shall be downloaded. "
+                                                         "The name should be written in its original language.")
     args = argparser.parse_args()
     global verbose, debug
     verbose = args.verbose
     debug = args.debug
 
+    verbose_info(f"The city: {args.city}")
+
+    query = f"""
+    area[name="{args.city}"];
+    (way["highway"](area); >;);
+    out skel;
+    """
     api = overpy.Overpass()
     result = api.query(query)
 
