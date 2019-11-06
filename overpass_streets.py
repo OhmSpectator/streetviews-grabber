@@ -3,6 +3,7 @@ from geographiclib.geodesic import Geodesic
 from google_key import KEY
 import requests
 import os
+import json
 
 debug = True
 
@@ -18,6 +19,20 @@ def get_geoline_props(lat1, lat2, long1, long2):
     azimuth = geoline['azi1']
     length = geoline['s12']
     return azimuth, length
+
+
+def streetview_available(lat, lon):
+    google_meta_api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
+    meta_request_params = {
+        "location": f"{lat:f},{lon:f}",
+        "key": KEY,
+    }
+    r = requests.get(google_meta_api_url, params=meta_request_params)
+    image_meta = json.loads(r.content)
+    if image_meta['status'] != "OK":
+        return False
+
+    return True
 
 
 def grab_streetview(lat, lon, heading, download_dir, filename):
@@ -64,6 +79,9 @@ def main():
             mid_lat = geodesic_mid['lat2']
             mid_lon = geodesic_mid['lon2']
             print(f"\t\tmid: {mid_lat:f}, {mid_lon:f}")
+
+            if not streetview_available(mid_lat, mid_lon):
+                continue
 
             heading_left = azimuth - 90
             filename = f"{way.id:d}-{segment:d}-left.jpeg"
