@@ -102,6 +102,8 @@ def main():
     (way["highway"](area); >;);
     out skel;
     """
+    verbose_info(query)
+
     api = overpy.Overpass()
     print("Requesting the OSM data... ", end="", flush=True)
     try:
