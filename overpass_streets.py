@@ -8,6 +8,7 @@ import argparse
 
 verbose = False
 debug = False
+count_only = False
 
 
 def verbose_info(*args, **kwargs):
@@ -55,18 +56,41 @@ def grab_streetview(lat, lon, heading, download_dir, filename):
     open(full_file, 'wb').write(r.content)
 
 
+def grab_streetviews(lat, lon, forward_heading, images_dir, segment, way_id):
+    heading_left = forward_heading - 90
+    filename = f"{way_id:d}-{segment:d}-left.jpeg"
+    grab_streetview(lat, lon, heading_left, images_dir, filename)
+
+    heading_right = forward_heading + 90
+    filename = f"{way_id:d}-{segment:d}-right.jpeg"
+    grab_streetview(lat, lon, heading_right, images_dir, filename)
+
+
+def create_download_dir(city):
+    images_dir = os.path.join("images", city)
+    if not os.path.isdir(images_dir):
+        os.makedirs(images_dir)
+    return images_dir
+
+
 def main():
     argparser = argparse.ArgumentParser(description="The script grabs Google Street View for a city.")
     argparser.add_argument("--debug", action="store_true", help="run in debug mode")
     argparser.add_argument("--verbose", action="store_true", help="show info about all the processed points")
     argparser.add_argument("--city", required=True, help="the city for which street views shall be downloaded. "
                                                          "The name should be written in its original language.")
+    argparser.add_argument("--count-only", action="store_true",
+                           help="do not download the images, only count their amount and calculate approximate total size")
     args = argparser.parse_args()
-    global verbose, debug
+    global verbose, debug, count_only
     verbose = args.verbose
     debug = args.debug
+    count_only = args.count_only
 
-    verbose_info(f"The city: {args.city}")
+    if count_only:
+        print(f"Calculate approximate total size of the data to be downloaded for {args.city}")
+    else:
+        print(f"Download the street views for {args.city}")
 
     query = f"""
     area[name="{args.city}"];
@@ -82,9 +106,11 @@ def main():
     if debug:
         ways = ways[0:1]
 
-    images_dir = os.path.join("images", args.city)
-    if not os.path.isdir(images_dir):
-       os.makedirs(images_dir)
+    images_dir = ""
+    if not count_only:
+        images_dir = create_download_dir(args.city)
+
+    streeviews_count = 0
 
     for way in ways:
         verbose_info(f"Way {way.id:d}")
@@ -108,13 +134,13 @@ def main():
             if not streetview_available(mid_lat, mid_lon):
                 continue
 
-            heading_left = azimuth - 90
-            filename = f"{way.id:d}-{segment:d}-left.jpeg"
-            grab_streetview(mid_lat, mid_lon, heading_left, images_dir, filename)
+            streeviews_count += 1
 
-            heading_right = azimuth + 90
-            filename = f"{way.id:d}-{segment:d}-right.jpeg"
-            grab_streetview(mid_lat, mid_lon, heading_right, images_dir, filename)
+            if not count_only:
+                grab_streetviews(mid_lat, mid_lon, azimuth, images_dir, segment, way.id)
+
+    if count_only:
+        print(f"Total images to download: {streeviews_count:d}, the size will be ~ {streeviews_count*0.05859:0.2f} Mb")
 
 
 main()
