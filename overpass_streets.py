@@ -7,12 +7,7 @@ debug = True
 
 query = """
 area["ISO3166-2"="DE-BE"][admin_level=4];
-(way[highway="residential"](area);
- way[highway="living_street"](area);
- way[highway="tertiary"](area);
- way[highway="service"](area);
- way[highway="secondary"](area);
-);
+(way["highway"](area); >;);
 out;
 """
 
@@ -47,7 +42,7 @@ def main():
 
     for way in ways:
         print(f'Way {way.id:d}')
-        nodes = way.get_nodes(resolve_missing=True)
+        nodes = way.get_nodes()
         for segment in range(0, len(nodes)-1):
             print("\tSegment " + str(segment))
             node_start = nodes[segment]
