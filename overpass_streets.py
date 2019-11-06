@@ -2,6 +2,7 @@ import overpy
 from geographiclib.geodesic import Geodesic
 from google_key import KEY
 import requests
+import os
 
 debug = True
 
@@ -19,7 +20,7 @@ def get_geoline_props(lat1, lat2, long1, long2):
     return azimuth, length
 
 
-def grab_streetview(lat, lon, heading, filename):
+def grab_streetview(lat, lon, heading, download_dir, filename):
     google_api_url = "https://maps.googleapis.com/maps/api/streetview"
     view_request_params = {
         "location": f"{lat:f}, {lon:f}",
@@ -29,7 +30,8 @@ def grab_streetview(lat, lon, heading, filename):
         "heading": f"{heading:f}"
     }
     r = requests.get(google_api_url, params=view_request_params)
-    open(filename, 'wb').write(r.content)
+    full_file = os.path.join(download_dir, filename)
+    open(full_file, 'wb').write(r.content)
 
 
 def main():
@@ -39,6 +41,10 @@ def main():
     ways = result.ways
     if debug:
         ways = ways[0:3]
+
+    images_dir = "images"
+    if not os.path.isdir(images_dir):
+       os.mkdir(images_dir)
 
     for way in ways:
         print(f'Way {way.id:d}')
@@ -61,11 +67,11 @@ def main():
 
             heading_left = azimuth - 90
             filename = f"{way.id:d}-{segment:d}-left.jpeg"
-            grab_streetview(mid_lat, mid_lon, heading_left, filename)
+            grab_streetview(mid_lat, mid_lon, heading_left, images_dir, filename)
 
             heading_right = azimuth + 90
             filename = f"{way.id:d}-{segment:d}-right.jpeg"
-            grab_streetview(mid_lat, mid_lon, heading_right, filename)
+            grab_streetview(mid_lat, mid_lon, heading_right, images_dir, filename)
 
 
 main()
