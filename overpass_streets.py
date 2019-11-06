@@ -2,9 +2,11 @@ import overpy
 from geographiclib.geodesic import Geodesic
 from google_key import KEY
 import requests
+import requests.compat
 import os
 import json
 import argparse
+import sys
 
 verbose = False
 debug = False
@@ -81,6 +83,9 @@ def main():
                                                          "The name should be written in its original language.")
     argparser.add_argument("--count-only", action="store_true",
                            help="do not download the images, only count their amount and calculate approximate total size")
+    argparser.add_argument("--alternative-server", default="https://lz4.overpass-api.de/api/interpreter",
+                           help="alternative server of Overpass API if the main one refuses to handle. Must start with "
+                                "\"http(s)\" and contain the right URL (usually, \"api/interpreter\")")
     args = argparser.parse_args()
     global verbose, debug, count_only
     verbose = args.verbose
@@ -99,7 +104,31 @@ def main():
     """
     api = overpy.Overpass()
     print("Requesting the OSM data... ", end="", flush=True)
-    result = api.query(query)
+    try:
+        result = api.query(query)
+    except overpy.exception.OverpassTooManyRequests as e:
+        verbose_info("failed!")
+        verbose_info(e)
+        verbose_info(f"The main server refused to handle, try {args.alternative_server}")
+        api = overpy.Overpass(args.alternative_server.encode())
+        verbose_info("Requesting the OSM data... ", end="", flush=True)
+        try:
+            result = api.query(query)
+        except TypeError as e:
+            print("failed!")
+            print(e)
+            print(f"Failed to connect to the alternative server ({args.alternative_server}). Make sure it's correct ("
+                  f"read help for the script for the details).")
+            sys.exit(1)
+        except overpy.exception.OverpassTooManyRequests as e:
+            print("failed!")
+            print(e)
+            sys.exit(1)
+    except Exception as e:
+        print("failed!")
+        print(e)
+        raise
+
     print("done!")
 
     ways = result.ways
