@@ -75,7 +75,7 @@ def create_download_dir(city):
     return images_dir
 
 
-def main():
+def parse_args():
     argparser = argparse.ArgumentParser(description="The script grabs Google Street View for a city.")
     argparser.add_argument("--debug", action="store_true", help="run in debug mode")
     argparser.add_argument("--verbose", action="store_true", help="show info about all the processed points")
@@ -95,19 +95,17 @@ def main():
     verbose = args.verbose
     debug = args.debug
     count_only = args.count_only
+    return args
 
-    if count_only:
-        print(f"Calculate approximate total size of the data to be downloaded for {args.city}")
-    else:
-        print(f"Download the street views for {args.city}")
 
+def get_osm_data(city, alternative_server):
     query = f"""
-    area[name="{args.city}"];
+    area[name="{city}"];
     (way["highway"](area); >;);
     out skel;
     """
+    verbose_info("Overpass API queue:")
     verbose_info(query)
-
     api = overpy.Overpass()
     print("Requesting the OSM data... ", end="", flush=True)
     try:
@@ -115,15 +113,15 @@ def main():
     except overpy.exception.OverpassTooManyRequests as e:
         verbose_info("failed!")
         verbose_info(e)
-        verbose_info(f"The main server refused to handle, try {args.alternative_server}")
-        api = overpy.Overpass(args.alternative_server.encode())
+        verbose_info(f"The main server refused to handle, try {alternative_server}")
+        api = overpy.Overpass(alternative_server.encode())
         verbose_info("Requesting the OSM data... ", end="", flush=True)
         try:
             result = api.query(query)
         except TypeError as e:
             print("failed!")
             print(e)
-            print(f"Failed to connect to the alternative server ({args.alternative_server}). Make sure it's correct ("
+            print(f"Failed to connect to the alternative server ({alternative_server}). Make sure it's correct ("
                   f"read help for the script for the details).")
             sys.exit(1)
         except overpy.exception.OverpassTooManyRequests as e:
@@ -134,8 +132,19 @@ def main():
         print("failed!")
         print(e)
         raise
-
     print("done!")
+    return result
+
+
+def main():
+    args = parse_args()
+
+    if count_only:
+        print(f"Calculate approximate total size of the data to be downloaded for {args.city}")
+    else:
+        print(f"Download the street views for {args.city}")
+
+    result = get_osm_data(args.city, args.alternative_server)
 
     ways = result.ways
     if debug:
