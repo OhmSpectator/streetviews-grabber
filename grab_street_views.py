@@ -58,7 +58,7 @@ def grab_streetview(lat, lon, heading, fov, download_dir, filename):
     open(full_file, 'wb').write(r.content)
 
 
-def grab_streetviews(lat, lon, forward_heading, fov, images_dir, id, way_id):
+def look_around(lat, lon, forward_heading, fov, images_dir, id, way_id):
     heading_left = forward_heading - 90
     filename = f"{id:d}-{way_id:d}-left.jpeg"
     grab_streetview(lat, lon, heading_left, fov, images_dir, filename)
@@ -136,6 +136,44 @@ def get_osm_data(city, alternative_server):
     return result
 
 
+def walk_the_routes(fov, images_dir, routes):
+    street_views_count = 0
+    for route in routes:
+        verbose_info(f"Route {route.id:d}")
+        milestones = route.get_nodes()
+        for segment in range(0, len(milestones) - 1):
+            verbose_info(f"\tSegment {segment:d}")
+            starting_milestone = milestones[segment]
+            ending_milestone = milestones[segment + 1]
+            verbose_info(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
+            verbose_info(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
+            azimuth, length = get_geoline_props(starting_milestone.lat, ending_milestone.lat, starting_milestone.lon, ending_milestone.lon)
+            verbose_info(f"\t\tazimuth: {azimuth:f}")
+            verbose_info(f"\t\tlength: {length:f}")
+            verbose_info("\t\tStepping the segment...")
+            street_views_count += walk_segment(starting_milestone, length, azimuth, fov, images_dir, route.id)
+    return street_views_count
+
+
+def walk_segment(start_point, length, azimuth, fov, images_dir, id):
+    count = 0
+    offset = 5
+    while offset < length:
+        shifted_geonode = Geodesic.WGS84.Direct(start_point.lat, start_point.lon, azimuth, offset)
+        curr_lat = shifted_geonode['lat2']
+        curr_lon = shifted_geonode['lon2']
+        verbose_info(f"\t\t\tHave passed {offset:d} meters from the start of the street, "
+                     f"came into {curr_lat:f},{curr_lon:f}")
+        offset += 10
+        if not streetview_available(curr_lat, curr_lon):
+            continue
+        count += 1
+        if not count_only:
+            assert images_dir
+            look_around(curr_lat, curr_lon, azimuth, fov, images_dir, count, id)
+    return count
+
+
 def main():
     args = parse_args()
 
@@ -144,53 +182,25 @@ def main():
     else:
         print(f"Download the street views for {args.city}")
 
-    result = get_osm_data(args.city, args.alternative_server)
+    osm_data = get_osm_data(args.city, args.alternative_server)
 
-    ways = result.ways
+    routes = osm_data.ways
     if debug:
-        ways = ways[0:1]
+        routes = routes[0:1]
 
-    images_dir = ""
+    images_dir = None
     if not count_only:
         images_dir = create_download_dir(args.city)
-
-    streeviews_count = 0
 
     if count_only:
         print("Counting... ", end="", flush=True)
     else:
         print("Downloading... ", end="", flush=True)
 
-    for way in ways:
-        verbose_info(f"Way {way.id:d}")
-        nodes = way.get_nodes()
-        for segment in range(0, len(nodes)-1):
-            verbose_info(f"\tSegment {segment:d}")
-            node_start = nodes[segment]
-            node_end = nodes[segment+1]
-            verbose_info(f"\t\tstart: {node_start.lat:f}, {node_start.lon:f}")
-            verbose_info(f"\t\tend: {node_end.lat:f}, {node_end.lon:f}")
-            azimuth, length = get_geoline_props(node_start.lat, node_end.lat, node_start.lon, node_end.lon)
-            verbose_info(f"\t\tazimuth: {azimuth:f}")
-            verbose_info(f"\t\tlength: {length:f}")
-
-            verbose_info("\t\tStepping the segment...")
-            offset = 5
-            while offset < length:
-                shifted_geonode = Geodesic.WGS84.Direct(node_start.lat, node_start.lon, azimuth, offset)
-                curr_lat = shifted_geonode['lat2']
-                curr_lon = shifted_geonode['lon2']
-                verbose_info(f"\t\t\tHave passed {offset:d} meters from the start of the street, "
-                             f"came into {curr_lat:f},{curr_lon:f}")
-                offset += 10
-                if not streetview_available(curr_lat, curr_lon):
-                    continue
-                streeviews_count += 1
-                if not count_only:
-                    grab_streetviews(curr_lat, curr_lon, azimuth, args.fov, images_dir, streeviews_count, way.id)
+    street_views_count = walk_the_routes(args.fov, images_dir, routes)
 
     if count_only:
-        print(f"Total images to download: {streeviews_count:d}, the size will be ~ {streeviews_count*0.05859*2:0.2f} Mb")
+        print(f"Total images to download: {street_views_count:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")
 
 
 main()
