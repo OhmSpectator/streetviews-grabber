@@ -79,7 +79,7 @@ def main():
     argparser = argparse.ArgumentParser(description="The script grabs Google Street View for a city.")
     argparser.add_argument("--debug", action="store_true", help="run in debug mode")
     argparser.add_argument("--verbose", action="store_true", help="show info about all the processed points")
-    argparser.add_argument("city", help="the city for which street views shall be downloaded. The name should be"
+    argparser.add_argument("city", help="the city for which street views shall be downloaded. The name should be "
                                         "written in its original language (e.g. Москва, not Moscow).")
     argparser.add_argument("--count-only", action="store_true",
                            help="do not download the images, only count their amount and calculate approximate total "

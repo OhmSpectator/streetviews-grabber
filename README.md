@@ -34,7 +34,7 @@ python3 grab_street_views.py [-h] [--debug] [--verbose] [--count-only]
 
 positional arguments:
   city                  the city for which street views shall be downloaded.
-                        The name should bewritten in its original language
+                        The name should be written in its original language
                         (e.g. Москва, not Moscow).
 optional arguments:
   -h, --help            show this help message and exit
