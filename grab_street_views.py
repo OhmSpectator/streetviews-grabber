@@ -42,13 +42,13 @@ def streetview_available(lat, lon):
     return True
 
 
-def grab_streetview(lat, lon, heading, download_dir, filename):
+def grab_streetview(lat, lon, heading, fov, download_dir, filename):
     google_api_url = "https://maps.googleapis.com/maps/api/streetview"
     view_request_params = {
         "location": f"{lat:f}, {lon:f}",
         "size": "640x480",
         "key": KEY,
-        "fov": "90",
+        "fov": fov,
         "heading": f"{heading:f}"
     }
     r = requests.get(google_api_url, params=view_request_params)
@@ -58,14 +58,14 @@ def grab_streetview(lat, lon, heading, download_dir, filename):
     open(full_file, 'wb').write(r.content)
 
 
-def grab_streetviews(lat, lon, forward_heading, images_dir, id, way_id):
+def grab_streetviews(lat, lon, forward_heading, fov, images_dir, id, way_id):
     heading_left = forward_heading - 90
     filename = f"{id:d}-{way_id:d}-left.jpeg"
-    grab_streetview(lat, lon, heading_left, images_dir, filename)
+    grab_streetview(lat, lon, heading_left, fov, images_dir, filename)
 
     heading_right = forward_heading + 90
     filename = f"{id:d}-{way_id:d}-right.jpeg"
-    grab_streetview(lat, lon, heading_right, images_dir, filename)
+    grab_streetview(lat, lon, heading_right, fov, images_dir, filename)
 
 
 def create_download_dir(city):
@@ -87,6 +87,9 @@ def main():
     argparser.add_argument("--alternative-server", default="https://lz4.overpass-api.de/api/interpreter",
                            help="alternative server of Overpass API if the main one refuses to handle. Must start with "
                                 "\"http(s)\" and contain the right URL (usually, \"api/interpreter\")")
+    argparser.add_argument("--fov", default=50, type=int, choices=range(20, 121), metavar="[20-120]",
+                           help="field of view of the street views. Less the value, more zoomed the images. Must be in "
+                                "a range between 20 and 120. Default is 50.")
     args = argparser.parse_args()
     global verbose, debug, count_only
     verbose = args.verbose
@@ -175,7 +178,7 @@ def main():
                     continue
                 streeviews_count += 1
                 if not count_only:
-                    grab_streetviews(curr_lat, curr_lon, azimuth, images_dir, streeviews_count, way.id)
+                    grab_streetviews(curr_lat, curr_lon, azimuth, args.fov, images_dir, streeviews_count, way.id)
 
     if count_only:
         print(f"Total images to download: {streeviews_count:d}, the size will be ~ {streeviews_count*0.05859*2:0.2f} Mb")

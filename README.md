@@ -46,4 +46,7 @@ optional arguments:
                         alternative server of Overpass API if the main one
                         refuses to handle. Must start with "http(s)" and
                         contain the right URL (usually, "api/interpreter")
+  --fov [20-120]        field of view of the street views. Less the value,
+                        more zoomed the images. Must be in a range between 20
+                        and 120. Default is 50.
 ```
