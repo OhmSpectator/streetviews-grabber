@@ -49,4 +49,6 @@ optional arguments:
   --fov [20-120]        field of view of the street views. Less the value,
                         more zoomed the images. Must be in a range between 20
                         and 120. Default is 50.
+  --rand                in the case of debug run, randomize the route to be
+                        handled (by default, the first one is taken)
 ```

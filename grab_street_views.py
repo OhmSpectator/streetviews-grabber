@@ -1,3 +1,5 @@
+from random import randrange
+
 import overpy
 from geographiclib.geodesic import Geodesic
 from google_key import KEY
@@ -90,6 +92,8 @@ def parse_args():
     argparser.add_argument("--fov", default=50, type=int, choices=range(20, 121), metavar="[20-120]",
                            help="field of view of the street views. Less the value, more zoomed the images. Must be in "
                                 "a range between 20 and 120. Default is 50.")
+    argparser.add_argument("--rand", action="store_true", help="in the case of debug run, randomize the route to be "
+                                                               "handled (by default, the first one is taken)")
     args = argparser.parse_args()
     global verbose, debug, count_only
     verbose = args.verbose
@@ -186,7 +190,11 @@ def main():
 
     routes = osm_data.ways
     if debug:
-        routes = routes[0:1]
+        test_route = 0
+        if args.rand:
+            test_route = randrange(0, len(routes)-1, 1)
+        verbose_info(f"Handle route #{test_route:d}")
+        routes = routes[test_route:test_route + 1]
 
     images_dir = None
     if not count_only:
