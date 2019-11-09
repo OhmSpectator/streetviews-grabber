@@ -40,7 +40,8 @@ def streetview_available(lat, lon):
     image_meta = json.loads(r.content)
     if image_meta['status'] != "OK":
         return False
-
+    if image_meta['copyright'] != "© Google":
+        return False
     return True
 
 
