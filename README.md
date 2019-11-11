@@ -51,4 +51,6 @@ optional arguments:
                         and 120. Default is 50.
   --rand                in the case of debug run, randomize the route to be
                         handled (by default, the first one is taken)
+  --visualize           visualize the walking process: show all the points of
+                        interest and the vectors of the available looks
 ```

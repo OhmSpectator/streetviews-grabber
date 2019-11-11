@@ -9,10 +9,13 @@ import os
 import json
 import argparse
 import sys
+import matplotlib.pyplot as plt
+import math
 
 verbose = False
 debug = False
 count_only = False
+plot = False
 
 
 def verbose_info(*args, **kwargs):
@@ -59,6 +62,10 @@ def grab_streetview(lat, lon, heading, fov, download_dir, filename):
     full_file = os.path.join(download_dir, filename)
     verbose_info(f"\t\t\t\tFile to save: {full_file}")
     open(full_file, 'wb').write(r.content)
+    if debug and plot:
+        v = math.cos(math.radians(heading))
+        u = math.sin(math.radians(heading))
+        plt.quiver(lon, lat, u, v)
 
 
 def look_around(lat, lon, forward_heading, fov, images_dir, id, way_id):
@@ -95,11 +102,14 @@ def parse_args():
                                 "a range between 20 and 120. Default is 50.")
     argparser.add_argument("--rand", action="store_true", help="in the case of debug run, randomize the route to be "
                                                                "handled (by default, the first one is taken)")
+    argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
+                                                                    "of interest and the vectors of the available looks")
     args = argparser.parse_args()
-    global verbose, debug, count_only
+    global verbose, debug, count_only, plot
     verbose = args.verbose
     debug = args.debug
     count_only = args.count_only
+    plot = args.visualize
     return args
 
 
@@ -150,6 +160,8 @@ def walk_the_routes(fov, images_dir, routes):
             verbose_info(f"\tSegment {segment:d}")
             starting_milestone = milestones[segment]
             ending_milestone = milestones[segment + 1]
+            if debug and plot:
+                plt.plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat], 'or-')
             verbose_info(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
             verbose_info(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
             azimuth, length = get_geoline_props(starting_milestone.lat, ending_milestone.lat, starting_milestone.lon, ending_milestone.lon)
@@ -157,6 +169,12 @@ def walk_the_routes(fov, images_dir, routes):
             verbose_info(f"\t\tlength: {length:f}")
             verbose_info("\t\tStepping the segment...")
             street_views_count += walk_segment(starting_milestone, length, azimuth, fov, images_dir, route.id)
+    if debug and plot:
+        plt.title('The Segments')
+        plt.xlabel('Longitude')
+        plt.ylabel('Latitude')
+        plt.axis('equal')
+        plt.show()
     return street_views_count
 
 
@@ -169,6 +187,8 @@ def walk_segment(start_point, length, azimuth, fov, images_dir, id):
         curr_lon = shifted_geonode['lon2']
         verbose_info(f"\t\t\tHave passed {offset:d} meters from the start of the street, "
                      f"came into {curr_lat:f},{curr_lon:f}")
+        if debug and plot:
+            plt.plot([curr_lon], [curr_lat], 'go')
         offset += 10
         if not streetview_available(curr_lat, curr_lon):
             continue
