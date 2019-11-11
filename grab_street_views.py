@@ -37,6 +37,7 @@ def streetview_available(lat, lon):
     meta_request_params = {
         "location": f"{lat:f},{lon:f}",
         "key": KEY,
+        "radius": 5
     }
     r = requests.get(google_meta_api_url, params=meta_request_params)
     verbose_info(f"\t\t\t\tStreet View meta request: {r.request.url}")
@@ -55,7 +56,8 @@ def grab_streetview(lat, lon, heading, fov, download_dir, filename):
         "size": "640x480",
         "key": KEY,
         "fov": fov,
-        "heading": f"{heading:f}"
+        "heading": f"{heading:f}",
+        "radius": 5
     }
     r = requests.get(google_api_url, params=view_request_params)
     verbose_info(f"\t\t\t\tStreet View request: {r.request.url}")
