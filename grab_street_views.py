@@ -43,12 +43,12 @@ def streetview_available(lat, lon, radius):
     verbose_info(f"\t\t\t\tStreet View meta request: {r.request.url}")
     image_meta = json.loads(r.content)
     if image_meta['status'] != "OK":
-        return False
+        return None
     if image_meta['copyright'] != "© Google":
-        return False
+        return None
     if debug and plot:
         plt.plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
-    return True
+    return image_meta['pano_id']
 
 
 def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
@@ -75,13 +75,13 @@ def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
         plt.quiver(lon, lat, u * ratio, v)
 
 
-def look_around(lat, lon, forward_heading, fov, radius, images_dir, id, way_id):
+def look_around(lat, lon, forward_heading, fov, radius, images_dir, uniq_id, way_id, in_way_id):
     heading_left = forward_heading - 90
-    filename = f"{id:d}-{way_id:d}-left.jpeg"
+    filename = f"{way_id:d}-left-{in_way_id:d}-{uniq_id}.jpeg"
     grab_streetview(lat, lon, heading_left, fov, radius, images_dir, filename)
 
     heading_right = forward_heading + 90
-    filename = f"{id:d}-{way_id:d}-right.jpeg"
+    filename = f"{way_id:d}-right-{in_way_id:d}-{uniq_id}.jpeg"
     grab_streetview(lat, lon, heading_right, fov, radius, images_dir, filename)
 
 
@@ -163,8 +163,9 @@ def get_osm_data(city, alternative_server):
 
 
 def walk_the_routes(fov, step, images_dir, routes):
-    street_views_count = 0
+    panos_total = 0
     for route in routes:
+        panos_in_route = 0
         verbose_info(f"Route {route.id:d}")
         milestones = route.get_nodes()
         for segment in range(0, len(milestones) - 1):
@@ -179,18 +180,21 @@ def walk_the_routes(fov, step, images_dir, routes):
             verbose_info(f"\t\tazimuth: {azimuth:f}")
             verbose_info(f"\t\tlength: {length:f}")
             verbose_info("\t\tStepping the segment...")
-            street_views_count += walk_segment(starting_milestone, length, azimuth, fov, step, images_dir, route.id)
+            panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir, route.id, panos_in_route)
+            panos_in_route += panos_in_segment
+            panos_total += panos_in_segment
+
     if debug and plot:
         plt.title('The Segments')
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
         plt.axis('equal')
         plt.show()
-    return street_views_count
+    return panos_total
 
 
-def walk_segment(start_point, length, azimuth, fov, step, images_dir, id):
-    count = 0
+def walk_segment(start_point, length, azimuth, fov, step, images_dir, route_id, panos_in_route):
+    panos_in_segment = 0
     search_radius = math.ceil(step / 2)
     debug_search_radius = step / 2
     verbose_info(f"\t\tStep: {step:.02f}")
@@ -216,13 +220,15 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir, id):
             plt.gca().add_patch(search_area)
 
         offset += step
-        if not streetview_available(curr_lat, curr_lon, search_radius):
+        pano_id = streetview_available(curr_lat, curr_lon, search_radius)
+        if not pano_id:
             continue
-        count += 1
+        panos_in_segment += 1
         if not count_only:
             assert images_dir
-            look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, count, id)
-    return count
+            in_way_id = panos_in_route + panos_in_segment
+            look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, pano_id, route_id, in_way_id)
+    return panos_in_segment
 
 
 def main():
