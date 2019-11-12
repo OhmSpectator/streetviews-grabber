@@ -32,12 +32,12 @@ def get_geoline_props(lat1, lat2, long1, long2):
     return azimuth, length
 
 
-def streetview_available(lat, lon):
+def streetview_available(lat, lon, radius):
     google_meta_api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     meta_request_params = {
         "location": f"{lat:f},{lon:f}",
         "key": KEY,
-        "radius": 5
+        "radius": radius
     }
     r = requests.get(google_meta_api_url, params=meta_request_params)
     verbose_info(f"\t\t\t\tStreet View meta request: {r.request.url}")
@@ -49,7 +49,7 @@ def streetview_available(lat, lon):
     return True
 
 
-def grab_streetview(lat, lon, heading, fov, download_dir, filename):
+def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
     google_api_url = "https://maps.googleapis.com/maps/api/streetview"
     view_request_params = {
         "location": f"{lat:f}, {lon:f}",
@@ -57,7 +57,7 @@ def grab_streetview(lat, lon, heading, fov, download_dir, filename):
         "key": KEY,
         "fov": fov,
         "heading": f"{heading:f}",
-        "radius": 5
+        "radius": radius
     }
     r = requests.get(google_api_url, params=view_request_params)
     verbose_info(f"\t\t\t\tStreet View request: {r.request.url}")
@@ -70,14 +70,14 @@ def grab_streetview(lat, lon, heading, fov, download_dir, filename):
         plt.quiver(lon, lat, u, v)
 
 
-def look_around(lat, lon, forward_heading, fov, images_dir, id, way_id):
+def look_around(lat, lon, forward_heading, fov, radius, images_dir, id, way_id):
     heading_left = forward_heading - 90
     filename = f"{id:d}-{way_id:d}-left.jpeg"
-    grab_streetview(lat, lon, heading_left, fov, images_dir, filename)
+    grab_streetview(lat, lon, heading_left, fov, radius, images_dir, filename)
 
     heading_right = forward_heading + 90
     filename = f"{id:d}-{way_id:d}-right.jpeg"
-    grab_streetview(lat, lon, heading_right, fov, images_dir, filename)
+    grab_streetview(lat, lon, heading_right, fov, radius, images_dir, filename)
 
 
 def create_download_dir(city):
@@ -102,6 +102,10 @@ def parse_args():
     argparser.add_argument("--fov", default=50, type=int, choices=range(20, 121), metavar="[20-120]",
                            help="field of view of the street views. Less the value, more zoomed the images. Must be in "
                                 "a range between 20 and 120. Default is 50.")
+    argparser.add_argument("--step", default=10, type=float, help="a step in meters with which the script walks through "
+                                                                "routes, i.e., probes for a street view availability. "
+                                                                "Also it effect the radius of the search for a street "
+                                                                "view. The radius is a half of a step. Default is 10.")
     argparser.add_argument("--rand", action="store_true", help="in the case of debug run, randomize the route to be "
                                                                "handled (by default, the first one is taken)")
     argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
@@ -153,7 +157,7 @@ def get_osm_data(city, alternative_server):
     return result
 
 
-def walk_the_routes(fov, images_dir, routes):
+def walk_the_routes(fov, step, images_dir, routes):
     street_views_count = 0
     for route in routes:
         verbose_info(f"Route {route.id:d}")
@@ -170,7 +174,7 @@ def walk_the_routes(fov, images_dir, routes):
             verbose_info(f"\t\tazimuth: {azimuth:f}")
             verbose_info(f"\t\tlength: {length:f}")
             verbose_info("\t\tStepping the segment...")
-            street_views_count += walk_segment(starting_milestone, length, azimuth, fov, images_dir, route.id)
+            street_views_count += walk_segment(starting_milestone, length, azimuth, fov, step, images_dir, route.id)
     if debug and plot:
         plt.title('The Segments')
         plt.xlabel('Longitude')
@@ -180,24 +184,27 @@ def walk_the_routes(fov, images_dir, routes):
     return street_views_count
 
 
-def walk_segment(start_point, length, azimuth, fov, images_dir, id):
+def walk_segment(start_point, length, azimuth, fov, step, images_dir, id):
     count = 0
-    offset = 5
-    while offset < length:
+    search_radius = math.ceil(step / 2)
+    verbose_info(f"\t\tStep: {step:.02f}")
+    verbose_info(f"\t\tSearch radius: {search_radius:.02f}")
+    offset = search_radius
+    while offset + search_radius < length:
         shifted_geonode = Geodesic.WGS84.Direct(start_point.lat, start_point.lon, azimuth, offset)
         curr_lat = shifted_geonode['lat2']
         curr_lon = shifted_geonode['lon2']
-        verbose_info(f"\t\t\tHave passed {offset:d} meters from the start of the street, "
+        verbose_info(f"\t\t\tHave passed {offset:.02f} meters from the start of the street, "
                      f"came into {curr_lat:f},{curr_lon:f}")
         if debug and plot:
             plt.plot([curr_lon], [curr_lat], 'go')
-        offset += 10
-        if not streetview_available(curr_lat, curr_lon):
+        offset += step
+        if not streetview_available(curr_lat, curr_lon, search_radius):
             continue
         count += 1
         if not count_only:
             assert images_dir
-            look_around(curr_lat, curr_lon, azimuth, fov, images_dir, count, id)
+            look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, count, id)
     return count
 
 
@@ -228,7 +235,7 @@ def main():
     else:
         print("Downloading... ", end="", flush=True)
 
-    street_views_count = walk_the_routes(args.fov, images_dir, routes)
+    street_views_count = walk_the_routes(args.fov, args.step, images_dir, routes)
 
     if count_only:
         print(f"Total images to download: {street_views_count:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")

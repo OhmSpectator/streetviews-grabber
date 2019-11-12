@@ -49,6 +49,11 @@ optional arguments:
   --fov [20-120]        field of view of the street views. Less the value,
                         more zoomed the images. Must be in a range between 20
                         and 120. Default is 50.
+  --step STEP           a step in meters with which the script walks through
+                        routes, i.e., probes for a street view availability.
+                        Also it effect the radius of the search for a street
+                        view. The radius is a half of a step. Default is 10.
+
   --rand                in the case of debug run, randomize the route to be
                         handled (by default, the first one is taken)
   --visualize           visualize the walking process: show all the points of
