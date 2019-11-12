@@ -1,5 +1,4 @@
 from random import randrange
-
 import overpy
 from geographiclib.geodesic import Geodesic
 from google_key import KEY
@@ -10,6 +9,7 @@ import json
 import argparse
 import sys
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import math
 
 verbose = False
@@ -46,6 +46,8 @@ def streetview_available(lat, lon, radius):
         return False
     if image_meta['copyright'] != "© Google":
         return False
+    if debug and plot:
+        plt.plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
     return True
 
 
@@ -190,9 +192,11 @@ def walk_the_routes(fov, step, images_dir, routes):
 def walk_segment(start_point, length, azimuth, fov, step, images_dir, id):
     count = 0
     search_radius = math.ceil(step / 2)
+    debug_search_radius = step / 2
     verbose_info(f"\t\tStep: {step:.02f}")
     verbose_info(f"\t\tSearch radius: {search_radius:.02f}")
     offset = search_radius
+    plt.plot(start_point.lon, start_point.lat, 'g^')
     while offset + search_radius < length:
         shifted_geonode = Geodesic.WGS84.Direct(start_point.lat, start_point.lon, azimuth, offset)
         curr_lat = shifted_geonode['lat2']
@@ -201,6 +205,16 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir, id):
                      f"came into {curr_lat:f},{curr_lon:f}")
         if debug and plot:
             plt.plot([curr_lon], [curr_lat], 'go')
+            geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, search_radius)['lon2'] - curr_lon
+            geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, search_radius)['lat2'] - curr_lat
+            search_area = patches.Ellipse((curr_lon, curr_lat), geo_radius_lon * 2, geo_radius_lat * 2, fill=False, color='b')
+            plt.gca().add_patch(search_area)
+
+            debug_geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, debug_search_radius)['lon2'] - curr_lon
+            debug_geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, debug_search_radius)['lat2'] - curr_lat
+            search_area = patches.Ellipse((curr_lon, curr_lat), debug_geo_radius_lon * 2, debug_geo_radius_lat * 2, fill=False, color='r')
+            plt.gca().add_patch(search_area)
+
         offset += step
         if not streetview_available(curr_lat, curr_lon, search_radius):
             continue
