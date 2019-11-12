@@ -38,17 +38,23 @@ positional arguments:
                         (e.g. Москва, not Moscow).
 optional arguments:
   -h, --help            show this help message and exit
+
   --debug               run in debug mode
+
   --verbose             show info about all the processed points
+
   --count-only          do not download the images, only count their amount
                         and calculate approximate total size
+
   --alternative-server ALTERNATIVE_SERVER
                         alternative server of Overpass API if the main one
                         refuses to handle. Must start with "http(s)" and
                         contain the right URL (usually, "api/interpreter")
+
   --fov [20-120]        field of view of the street views. Less the value,
                         more zoomed the images. Must be in a range between 20
                         and 120. Default is 50.
+
   --step STEP           a step in meters with which the script walks through
                         routes, i.e., probes for a street view availability.
                         Also it effect the radius of the search for a street
@@ -56,6 +62,7 @@ optional arguments:
 
   --rand                in the case of debug run, randomize the route to be
                         handled (by default, the first one is taken)
+
   --visualize           visualize the walking process: show all the points of
                         interest and the vectors of the available looks
 ```
