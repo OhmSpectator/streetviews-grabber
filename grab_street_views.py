@@ -67,7 +67,10 @@ def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
     if debug and plot:
         v = math.cos(math.radians(heading))
         u = math.sin(math.radians(heading))
-        plt.quiver(lon, lat, u, v)
+        meters_in_lon = Geodesic.WGS84.Direct(lat, lon, 90, 1)['lon2'] - lon
+        meters_in_lat = Geodesic.WGS84.Direct(lat, lon, 0, 1)['lat2'] - lat
+        ratio = meters_in_lat / meters_in_lon
+        plt.quiver(lon, lat, u * ratio, v)
 
 
 def look_around(lat, lon, forward_heading, fov, radius, images_dir, id, way_id):
