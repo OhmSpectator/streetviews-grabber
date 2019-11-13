@@ -261,7 +261,7 @@ def main():
     street_views_count = walk_the_routes(args.fov, args.step, images_dir, routes)
 
     if count_only:
-        print(f"Total images to download: {street_views_count:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")
+        print(f"Total images to download: {street_views_count*2:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")
 
 
 main()
