@@ -13,12 +13,12 @@ via the Google Street View Metadata API (for checking), and the Google Street Vi
 ## Requirements
 
 ### Modules
-A list of python3 modules are necessary for the script.
 
-At least they are:
-* `overpy`
-* `geographiclib`
-* ...
+Install dependencies using requirements.txt
+
+```shell
+pip install -r requirements.txt
+```
 
 ### Google API key
 Moreover, an API key is necessary to get access to the Google APIs. It should be stored as the `KEY` variable in the
