@@ -1,16 +1,17 @@
-from random import randrange
-import overpy
-from geographiclib.geodesic import Geodesic
-from google_key import KEY
-import requests
-import requests.compat
-import os
-import json
 import argparse
-import sys
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import json
 import math
+import os
+import sys
+from random import randrange
+
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import overpy
+import requests
+from geographiclib.geodesic import Geodesic
+
+from google_key import KEY
 
 verbose = False
 debug = False
