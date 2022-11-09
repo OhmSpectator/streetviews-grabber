@@ -21,8 +21,8 @@ pip install -r requirements.txt
 ```
 
 ### Google API key
-Moreover, an API key is necessary to get access to the Google APIs. It should be stored as the `KEY` variable in the
-`__init__.py` file of the `google_key` module.
+Moreover, an API key is necessary to get access to the Google APIs. It should be passed as a environment variable 
+GOOGLE_API_KEY.
 
 A key for a project can be obtained at Google Cloud (https://cloud.google.com/).
 

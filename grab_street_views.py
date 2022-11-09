@@ -11,8 +11,6 @@ import overpy
 import requests
 from geographiclib.geodesic import Geodesic
 
-from google_key import KEY
-
 verbose = False
 debug = False
 download = False
@@ -25,6 +23,16 @@ def verbose_info(*args, **kwargs):
     else:
         pass
 
+
+def google_api_key():
+    api_key = os.getenv('GOOGLE_API_KEY')
+    if not api_key:
+        print("No GOOGLE_API_KEY env variable provided...")
+        sys.exit(1)
+    return api_key
+
+
+KEY = google_api_key()
 
 def get_geoline_props(lat1, lat2, long1, long2):
     geoline = Geodesic.WGS84.Inverse(lat1, long1, lat2, long2)
