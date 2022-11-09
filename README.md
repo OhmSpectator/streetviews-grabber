@@ -43,8 +43,8 @@ optional arguments:
 
   --verbose             show info about all the processed points
 
-  --count-only          do not download the images, only count their amount
-                        and calculate approximate total size
+  --download            download the images. If not set, only count amount and
+                        calculate approximate total size 
 
   --alternative-server ALTERNATIVE_SERVER
                         alternative server of Overpass API if the main one

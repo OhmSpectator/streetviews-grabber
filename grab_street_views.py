@@ -15,7 +15,7 @@ from google_key import KEY
 
 verbose = False
 debug = False
-count_only = False
+download = False
 plot = False
 
 
@@ -99,8 +99,8 @@ def parse_args():
     argparser.add_argument("--verbose", action="store_true", help="show info about all the processed points")
     argparser.add_argument("city", help="the city for which street views shall be downloaded. The name should be "
                                         "written in its original language (e.g. Москва, not Moscow).")
-    argparser.add_argument("--count-only", action="store_true",
-                           help="do not download the images, only count their amount and calculate approximate total "
+    argparser.add_argument("--download", action="store_true",
+                           help="download the images. If not set, only count amount and calculate approximate total "
                                 "size")
     argparser.add_argument("--alternative-server", default="https://lz4.overpass-api.de/api/interpreter",
                            help="alternative server of Overpass API if the main one refuses to handle. Must start with "
@@ -117,10 +117,10 @@ def parse_args():
     argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
                                                                     "of interest and the vectors of the available looks")
     args = argparser.parse_args()
-    global verbose, debug, count_only, plot
+    global verbose, debug, download, plot
     verbose = args.verbose
     debug = args.debug
-    count_only = args.count_only
+    download = args.download
     plot = args.visualize
     return args
 
@@ -225,7 +225,7 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir, route_id, 
         if not pano_id:
             continue
         panos_in_segment += 1
-        if not count_only:
+        if download:
             assert images_dir
             in_way_id = panos_in_route + panos_in_segment
             look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, pano_id, route_id, in_way_id)
@@ -235,7 +235,7 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir, route_id, 
 def main():
     args = parse_args()
 
-    if count_only:
+    if not download:
         print(f"Calculate approximate total size of the data to be downloaded for {args.city}")
     else:
         print(f"Download the street views for {args.city}")
@@ -251,17 +251,17 @@ def main():
         routes = routes[test_route:test_route + 1]
 
     images_dir = None
-    if not count_only:
+    if download:
         images_dir = create_download_dir(args.city)
 
-    if count_only:
+    if not download:
         print("Counting... ", end="", flush=True)
     else:
         print("Downloading... ", end="", flush=True)
 
     street_views_count = walk_the_routes(args.fov, args.step, images_dir, routes)
 
-    if count_only:
+    if not download:
         print(f"Total images to download: {street_views_count*2:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")
 
 
