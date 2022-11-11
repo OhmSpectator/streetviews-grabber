@@ -66,3 +66,6 @@ optional arguments:
   --visualize           visualize the walking process: show all the points of
                         interest and the vectors of the available looks
 ```
+
+### Alternative Servers
+A list of alternative servers with public Overpass API instances can be found here: https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances 
