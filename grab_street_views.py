@@ -84,13 +84,13 @@ def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
         plt.quiver(lon, lat, u * ratio, v)
 
 
-def look_around(lat, lon, forward_heading, fov, radius, images_dir, uniq_id, way_id, in_way_id):
+def look_around(lat, lon, forward_heading, fov, radius, images_dir, uniq_id):
     heading_left = forward_heading - 90
-    filename = f"{way_id:d}-left-{in_way_id:d}-{uniq_id}.jpeg"
+    filename = f"{uniq_id}-left.jpeg"
     grab_streetview(lat, lon, heading_left, fov, radius, images_dir, filename)
 
     heading_right = forward_heading + 90
-    filename = f"{way_id:d}-right-{in_way_id:d}-{uniq_id}.jpeg"
+    filename = f"{uniq_id}-right.jpeg"
     grab_streetview(lat, lon, heading_right, fov, radius, images_dir, filename)
 
 
@@ -189,7 +189,7 @@ def walk_the_routes(fov, step, images_dir, routes):
             verbose_info(f"\t\tazimuth: {azimuth:f}")
             verbose_info(f"\t\tlength: {length:f}")
             verbose_info("\t\tStepping the segment...")
-            panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir, route.id, panos_in_route)
+            panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir)
             panos_in_route += panos_in_segment
             panos_total += panos_in_segment
 
@@ -202,7 +202,7 @@ def walk_the_routes(fov, step, images_dir, routes):
     return panos_total
 
 
-def walk_segment(start_point, length, azimuth, fov, step, images_dir, route_id, panos_in_route):
+def walk_segment(start_point, length, azimuth, fov, step, images_dir):
     panos_in_segment = 0
     search_radius = math.ceil(step / 2)
     debug_search_radius = step / 2
@@ -235,8 +235,7 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir, route_id, 
         panos_in_segment += 1
         if download:
             assert images_dir
-            in_way_id = panos_in_route + panos_in_segment
-            look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, pano_id, route_id, in_way_id)
+            look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, pano_id)
     return panos_in_segment
 
 
