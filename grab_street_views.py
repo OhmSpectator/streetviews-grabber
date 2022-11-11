@@ -1,4 +1,5 @@
 import argparse
+import concurrent.futures
 import json
 import math
 import os
@@ -171,35 +172,42 @@ def get_osm_data(city, alternative_server):
     return result
 
 
-def walk_the_routes(fov, step, images_dir, routes):
-    panos_total = 0
-    for route in routes:
-        panos_in_route = 0
-        verbose_info(f"Route {route.id:d}")
-        milestones = route.get_nodes()
-        for segment in range(0, len(milestones) - 1):
-            verbose_info(f"\tSegment {segment:d}")
-            starting_milestone = milestones[segment]
-            ending_milestone = milestones[segment + 1]
-            if debug and plot:
-                plt.plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat], 'or-')
-            verbose_info(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
-            verbose_info(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
-            azimuth, length = get_geoline_props(starting_milestone.lat, ending_milestone.lat, starting_milestone.lon, ending_milestone.lon)
-            verbose_info(f"\t\tazimuth: {azimuth:f}")
-            verbose_info(f"\t\tlength: {length:f}")
-            verbose_info("\t\tStepping the segment...")
-            panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir)
-            panos_in_route += panos_in_segment
-            panos_total += panos_in_segment
+def handle_route(fov, images_dir, route, step):
+    verbose_info(f"Route {route.id:d}")
+    milestones = route.get_nodes()
+    panos_in_route = 0
+    for segment in range(0, len(milestones) - 1):
+        verbose_info(f"\tSegment {segment:d}")
+        starting_milestone = milestones[segment]
+        ending_milestone = milestones[segment + 1]
+        if debug and plot:
+            plt.plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat],
+                     'or-')
+        verbose_info(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
+        verbose_info(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
+        azimuth, length = get_geoline_props(starting_milestone.lat, ending_milestone.lat, starting_milestone.lon,
+                                            ending_milestone.lon)
+        verbose_info(f"\t\tazimuth: {azimuth:f}")
+        verbose_info(f"\t\tlength: {length:f}")
+        verbose_info("\t\tStepping the segment...")
+        panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir)
+        panos_in_route += panos_in_segment
+    return panos_in_route
 
+
+def walk_the_routes(fov, step, images_dir, routes):
+    panos = 0
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {executor.submit(handle_route, fov, images_dir, route, step) for route in routes}
+        for future in concurrent.futures.as_completed(futures):
+            panos += future.result()
     if debug and plot:
         plt.title('The Segments')
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
         plt.axis('equal')
         plt.show()
-    return panos_total
+    return panos
 
 
 def walk_segment(start_point, length, azimuth, fov, step, images_dir):
