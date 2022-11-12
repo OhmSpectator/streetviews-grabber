@@ -42,14 +42,27 @@ def get_geoline_props(lat1, lat2, long1, long2):
     return azimuth, length
 
 
+# TODO Make the session logic a dedicated class
+sessions = {}
+
+
+def get_session(session_type):
+    if sessions.get(session_type):
+        return sessions.get(session_type)
+    session = requests.session()
+    sessions[type] = session
+    return session
+
+
 def streetview_available(lat, lon, radius):
+    session = get_session("meta")
     google_meta_api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     meta_request_params = {
         "location": f"{lat:f},{lon:f}",
         "key": KEY,
         "radius": radius
     }
-    r = requests.get(google_meta_api_url, params=meta_request_params)
+    r = session.get(google_meta_api_url, params=meta_request_params)
     verbose_info(f"\t\t\t\tStreet View meta request: {r.request.url}")
     image_meta = json.loads(r.content)
     if image_meta['status'] != "OK":
@@ -62,6 +75,7 @@ def streetview_available(lat, lon, radius):
 
 
 def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
+    session = get_session("streetview")
     google_api_url = "https://maps.googleapis.com/maps/api/streetview"
     view_request_params = {
         "location": f"{lat:f}, {lon:f}",
@@ -71,7 +85,7 @@ def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
         "heading": f"{heading:f}",
         "radius": radius
     }
-    r = requests.get(google_api_url, params=view_request_params)
+    r = session.get(google_api_url, params=view_request_params)
     verbose_info(f"\t\t\t\tStreet View request: {r.request.url}")
     full_file = os.path.join(download_dir, filename)
     verbose_info(f"\t\t\t\tFile to save: {full_file}")
