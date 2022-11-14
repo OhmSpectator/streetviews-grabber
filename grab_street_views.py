@@ -50,7 +50,7 @@ def get_session(session_type):
     if sessions.get(session_type):
         return sessions.get(session_type)
     session = requests.session()
-    sessions[type] = session
+    sessions[session_type] = session
     return session
 
 
