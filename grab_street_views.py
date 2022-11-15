@@ -6,11 +6,11 @@ import os
 import sys
 from random import randrange
 
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import overpy
 import requests
 from geographiclib.geodesic import Geodesic
+from matplotlib import patches
 
 verbose = False
 debug = False
