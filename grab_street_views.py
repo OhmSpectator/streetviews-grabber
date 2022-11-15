@@ -89,7 +89,8 @@ def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
     verbose_info(f"\t\t\t\tStreet View request: {r.request.url}")
     full_file = os.path.join(download_dir, filename)
     verbose_info(f"\t\t\t\tFile to save: {full_file}")
-    open(full_file, 'wb').write(r.content)
+    with open(full_file, 'wb') as image_file:
+        image_file.write(r.content)
     if debug and plot:
         v = math.cos(math.radians(heading))
         u = math.sin(math.radians(heading))
