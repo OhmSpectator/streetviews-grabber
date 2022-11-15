@@ -1,39 +1,21 @@
 import argparse
 import concurrent.futures
-import json
 import math
 import os
-import sys
 from random import randrange
 
-import matplotlib.pyplot as plt
-import overpy
-import requests
 from geographiclib.geodesic import Geodesic
 from matplotlib import patches
 
-verbose = False
+from streetviews_grabber.debugplot import is_plot, set_visualize, get_plt
+from streetviews_grabber.streetview import streetview_available, streetview_grab
+from streetviews_grabber.osm import get_osm_data
+from streetviews_grabber.tmp_logger import verbose_info, set_verbose
+
+
 debug = False
 download = False
-plot = False
 
-
-def verbose_info(*args, **kwargs):
-    if verbose:
-        print(*args, **kwargs)
-    else:
-        pass
-
-
-def google_api_key():
-    api_key = os.getenv('GOOGLE_API_KEY')
-    if not api_key:
-        print("No GOOGLE_API_KEY env variable provided...")
-        sys.exit(1)
-    return api_key
-
-
-KEY = google_api_key()
 
 def get_geoline_props(lat1, lat2, long1, long2):
     geoline = Geodesic.WGS84.Inverse(lat1, long1, lat2, long2)
@@ -42,76 +24,18 @@ def get_geoline_props(lat1, lat2, long1, long2):
     return azimuth, length
 
 
-# TODO Make the session logic a dedicated class
-sessions = {}
-
-
-def get_session(session_type):
-    if sessions.get(session_type):
-        return sessions.get(session_type)
-    session = requests.session()
-    sessions[session_type] = session
-    return session
-
-
-def streetview_available(lat, lon, radius):
-    session = get_session("meta")
-    google_meta_api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
-    meta_request_params = {
-        "location": f"{lat:f},{lon:f}",
-        "key": KEY,
-        "radius": radius
-    }
-    r = session.get(google_meta_api_url, params=meta_request_params)
-    verbose_info(f"\t\t\t\tStreet View meta request: {r.request.url}")
-    image_meta = json.loads(r.content)
-    if image_meta['status'] != "OK":
-        return None
-    if image_meta['copyright'] != "© Google":
-        return None
-    if debug and plot:
-        plt.plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
-    return image_meta['pano_id']
-
-
-def grab_streetview(lat, lon, heading, fov, radius, download_dir, filename):
-    session = get_session("streetview")
-    google_api_url = "https://maps.googleapis.com/maps/api/streetview"
-    view_request_params = {
-        "location": f"{lat:f}, {lon:f}",
-        "size": "640x480",
-        "key": KEY,
-        "fov": fov,
-        "heading": f"{heading:f}",
-        "radius": radius
-    }
-    r = session.get(google_api_url, params=view_request_params)
-    verbose_info(f"\t\t\t\tStreet View request: {r.request.url}")
-    full_file = os.path.join(download_dir, filename)
-    verbose_info(f"\t\t\t\tFile to save: {full_file}")
-    with open(full_file, 'wb') as image_file:
-        image_file.write(r.content)
-    if debug and plot:
-        v = math.cos(math.radians(heading))
-        u = math.sin(math.radians(heading))
-        meters_in_lon = Geodesic.WGS84.Direct(lat, lon, 90, 1)['lon2'] - lon
-        meters_in_lat = Geodesic.WGS84.Direct(lat, lon, 0, 1)['lat2'] - lat
-        ratio = meters_in_lat / meters_in_lon
-        plt.quiver(lon, lat, u * ratio, v)
-
-
 def look_around(lat, lon, forward_heading, fov, radius, images_dir, uniq_id):
     heading_left = forward_heading - 90
     filename = f"{uniq_id}-left.jpeg"
-    grab_streetview(lat, lon, heading_left, fov, radius, images_dir, filename)
+    streetview_grab(lat, lon, heading_left, fov, radius, images_dir, filename, debug)
 
     heading_right = forward_heading + 90
     filename = f"{uniq_id}-right.jpeg"
-    grab_streetview(lat, lon, heading_right, fov, radius, images_dir, filename)
+    streetview_grab(lat, lon, heading_right, fov, radius, images_dir, filename, debug)
 
 
 def create_download_dir(city):
-    images_dir = os.path.join("images", city)
+    images_dir = os.path.join("../images", city)
     if not os.path.isdir(images_dir):
         os.makedirs(images_dir)
     return images_dir
@@ -141,50 +65,12 @@ def parse_args():
     argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
                                                                     "of interest and the vectors of the available looks")
     args = argparser.parse_args()
-    global verbose, debug, download, plot
-    verbose = args.verbose
+    global debug, download
+    set_verbose(args.verbose)
+    set_visualize(args.visualize)
     debug = args.debug
     download = args.download
-    plot = args.visualize
     return args
-
-
-def get_osm_data(city, alternative_server):
-    query = f"""
-    area[name="{city}"];
-    (way["highway"](area); >;);
-    out skel;
-    """
-    verbose_info("Overpass API queue:")
-    verbose_info(query)
-    api = overpy.Overpass()
-    print("Requesting the OSM data... ", end="", flush=True)
-    try:
-        result = api.query(query)
-    except overpy.exception.OverpassTooManyRequests as e:
-        verbose_info("failed!")
-        verbose_info(e)
-        verbose_info(f"The main server refused to handle, try {alternative_server}")
-        api = overpy.Overpass(alternative_server.encode())
-        verbose_info("Requesting the OSM data... ", end="", flush=True)
-        try:
-            result = api.query(query)
-        except TypeError as e:
-            print("failed!")
-            print(e)
-            print(f"Failed to connect to the alternative server ({alternative_server}). Make sure it's correct ("
-                  f"read help for the script for the details).")
-            sys.exit(1)
-        except overpy.exception.OverpassTooManyRequests as e:
-            print("failed!")
-            print(e)
-            sys.exit(1)
-    except Exception as e:
-        print("failed!")
-        print(e)
-        raise
-    print("done!")
-    return result
 
 
 def handle_route(fov, images_dir, route, step):
@@ -195,8 +81,8 @@ def handle_route(fov, images_dir, route, step):
         verbose_info(f"\tSegment {segment:d}")
         starting_milestone = milestones[segment]
         ending_milestone = milestones[segment + 1]
-        if debug and plot:
-            plt.plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat],
+        if debug and is_plot():
+            get_plt().plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat],
                      'or-')
         verbose_info(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
         verbose_info(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
@@ -216,12 +102,12 @@ def walk_the_routes(fov, step, images_dir, routes):
         futures = {executor.submit(handle_route, fov, images_dir, route, step) for route in routes}
         for future in concurrent.futures.as_completed(futures):
             panos += future.result()
-    if debug and plot:
-        plt.title('The Segments')
-        plt.xlabel('Longitude')
-        plt.ylabel('Latitude')
-        plt.axis('equal')
-        plt.show()
+    if debug and is_plot():
+        get_plt().title('The Segments')
+        get_plt().xlabel('Longitude')
+        get_plt().ylabel('Latitude')
+        get_plt().axis('equal')
+        get_plt().show()
     return panos
 
 
@@ -232,24 +118,24 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
     verbose_info(f"\t\tStep: {step:.02f}")
     verbose_info(f"\t\tSearch radius: {search_radius:.02f}")
     offset = search_radius
-    plt.plot(start_point.lon, start_point.lat, 'g^')
+    get_plt().plot(start_point.lon, start_point.lat, 'g^')
     while offset + search_radius < length:
         shifted_geonode = Geodesic.WGS84.Direct(start_point.lat, start_point.lon, azimuth, offset)
         curr_lat = shifted_geonode['lat2']
         curr_lon = shifted_geonode['lon2']
         verbose_info(f"\t\t\tHave passed {offset:.02f} meters from the start of the street, "
                      f"came into {curr_lat:f},{curr_lon:f}")
-        if debug and plot:
-            plt.plot([curr_lon], [curr_lat], 'go')
+        if debug and is_plot():
+            get_plt().plot([curr_lon], [curr_lat], 'go')
             geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, search_radius)['lon2'] - curr_lon
             geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, search_radius)['lat2'] - curr_lat
             search_area = patches.Ellipse((curr_lon, curr_lat), geo_radius_lon * 2, geo_radius_lat * 2, fill=False, color='b')
-            plt.gca().add_patch(search_area)
+            get_plt().gca().add_patch(search_area)
 
             debug_geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, debug_search_radius)['lon2'] - curr_lon
             debug_geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, debug_search_radius)['lat2'] - curr_lat
             search_area = patches.Ellipse((curr_lon, curr_lat), debug_geo_radius_lon * 2, debug_geo_radius_lat * 2, fill=False, color='r')
-            plt.gca().add_patch(search_area)
+            get_plt().gca().add_patch(search_area)
 
         offset += step
         pano_id = streetview_available(curr_lat, curr_lon, search_radius)
