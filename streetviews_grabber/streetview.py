@@ -8,7 +8,7 @@ from geographiclib.geodesic import Geodesic
 from matplotlib import pyplot
 
 from streetviews_grabber.debugplot import is_plot
-from streetviews_grabber.tmp_logger import verbose_info
+import simple_logger
 
 
 def streetview_available(lat, lon, radius, debug=False):
@@ -20,7 +20,7 @@ def streetview_available(lat, lon, radius, debug=False):
         "radius": radius
     }
     r = session.get(google_meta_api_url, params=meta_request_params)
-    verbose_info(f"\t\t\t\tStreet View meta request: {r.request.url}")
+    logger.verbose(f"\t\t\t\tStreet View meta request: {r.request.url}")
     image_meta = json.loads(r.content)
     if image_meta['status'] != "OK":
         return None
@@ -43,9 +43,9 @@ def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debu
         "radius": radius
     }
     r = session.get(google_api_url, params=view_request_params)
-    verbose_info(f"\t\t\t\tStreet View request: {r.request.url}")
+    logger.verbose(f"\t\t\t\tStreet View request: {r.request.url}")
     full_file = os.path.join(download_dir, filename)
-    verbose_info(f"\t\t\t\tFile to save: {full_file}")
+    logger.verbose(f"\t\t\t\tFile to save: {full_file}")
     with open(full_file, 'wb') as image_file:
         image_file.write(r.content)
     if debug and is_plot():
@@ -71,9 +71,10 @@ def _get_session(session_type):
 def _google_api_key():
     api_key = os.getenv('GOOGLE_API_KEY')
     if not api_key:
-        print("No GOOGLE_API_KEY env variable provided...")
+        logger.info("No GOOGLE_API_KEY env variable provided...")
         sys.exit(1)
     return api_key
 
 
 KEY = _google_api_key()
+logger = simple_logger.Logger()
