@@ -1,9 +1,9 @@
 import sys
 
 import overpy
+import simple_logger
 
-from tmp_logger import verbose_info
-
+logger = simple_logger.Logger()
 
 def get_osm_data(city, alternative_server):
     query = f"""
@@ -11,33 +11,33 @@ def get_osm_data(city, alternative_server):
     (way["highway"](area); >;);
     out skel;
     """
-    verbose_info("Overpass API queue:")
-    verbose_info(query)
+    logger.verbose("Overpass API queue:")
+    logger.verbose(query)
     api = overpy.Overpass()
-    print("Requesting the OSM data... ", end="", flush=True)
+    logger.info("Requesting the OSM data... ", end="", flush=True)
     try:
         result = api.query(query)
     except overpy.exception.OverpassTooManyRequests as e:
-        verbose_info("failed!")
-        verbose_info(e)
-        verbose_info(f"The main server refused to handle, try {alternative_server}")
+        logger.verbose("failed!")
+        logger.verbose(e)
+        logger.verbose(f"The main server refused to handle, try {alternative_server}")
         api = overpy.Overpass(alternative_server.encode())
-        verbose_info("Requesting the OSM data... ", end="", flush=True)
+        logger.verbose("Requesting the OSM data... ", end="", flush=True)
         try:
             result = api.query(query)
         except TypeError as e:
-            print("failed!")
-            print(e)
-            print(f"Failed to connect to the alternative server ({alternative_server}). Make sure it's correct ("
+            logger.info("failed!")
+            logger.info(e)
+            logger.info(f"Failed to connect to the alternative server ({alternative_server}). Make sure it's correct ("
                   f"read help for the script for the details).")
             sys.exit(1)
         except overpy.exception.OverpassTooManyRequests as e:
-            print("failed!")
-            print(e)
+            logger.info("failed!")
+            logger.info(e)
             sys.exit(1)
     except Exception as e:
-        print("failed!")
-        print(e)
+        logger.info("failed!")
+        logger.info(e)
         raise
-    print("done!")
+    logger.info("done!")
     return result

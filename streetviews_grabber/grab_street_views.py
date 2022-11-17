@@ -10,11 +10,12 @@ from matplotlib import patches
 from streetviews_grabber.debugplot import is_plot, set_visualize, get_plt
 from streetviews_grabber.streetview import streetview_available, streetview_grab
 from streetviews_grabber.osm import get_osm_data
-from streetviews_grabber.tmp_logger import verbose_info, set_verbose
+import simple_logger
 
 
 debug = False
 download = False
+logger = None
 
 
 def get_geoline_props(lat1, lat2, long1, long2):
@@ -65,8 +66,8 @@ def parse_args():
     argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
                                                                     "of interest and the vectors of the available looks")
     args = argparser.parse_args()
-    global debug, download
-    set_verbose(args.verbose)
+    global debug, download, logger
+    logger = simple_logger.Logger(args.verbose)
     set_visualize(args.visualize)
     debug = args.debug
     download = args.download
@@ -74,23 +75,23 @@ def parse_args():
 
 
 def handle_route(fov, images_dir, route, step):
-    verbose_info(f"Route {route.id:d}")
+    logger.verbose(f"Route {route.id:d}")
     milestones = route.get_nodes()
     panos_in_route = 0
     for segment in range(0, len(milestones) - 1):
-        verbose_info(f"\tSegment {segment:d}")
+        logger.verbose(f"\tSegment {segment:d}")
         starting_milestone = milestones[segment]
         ending_milestone = milestones[segment + 1]
         if debug and is_plot():
             get_plt().plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat],
                      'or-')
-        verbose_info(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
-        verbose_info(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
+        logger.verbose(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
+        logger.verbose(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
         azimuth, length = get_geoline_props(starting_milestone.lat, ending_milestone.lat, starting_milestone.lon,
                                             ending_milestone.lon)
-        verbose_info(f"\t\tazimuth: {azimuth:f}")
-        verbose_info(f"\t\tlength: {length:f}")
-        verbose_info("\t\tStepping the segment...")
+        logger.verbose(f"\t\tazimuth: {azimuth:f}")
+        logger.verbose(f"\t\tlength: {length:f}")
+        logger.verbose("\t\tStepping the segment...")
         panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir)
         panos_in_route += panos_in_segment
     return panos_in_route
@@ -115,15 +116,15 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
     panos_in_segment = 0
     search_radius = math.ceil(step / 2)
     debug_search_radius = step / 2
-    verbose_info(f"\t\tStep: {step:.02f}")
-    verbose_info(f"\t\tSearch radius: {search_radius:.02f}")
+    logger.verbose(f"\t\tStep: {step:.02f}")
+    logger.verbose(f"\t\tSearch radius: {search_radius:.02f}")
     offset = search_radius
     get_plt().plot(start_point.lon, start_point.lat, 'g^')
     while offset + search_radius < length:
         shifted_geonode = Geodesic.WGS84.Direct(start_point.lat, start_point.lon, azimuth, offset)
         curr_lat = shifted_geonode['lat2']
         curr_lon = shifted_geonode['lon2']
-        verbose_info(f"\t\t\tHave passed {offset:.02f} meters from the start of the street, "
+        logger.verbose(f"\t\t\tHave passed {offset:.02f} meters from the start of the street, "
                      f"came into {curr_lat:f},{curr_lon:f}")
         if debug and is_plot():
             get_plt().plot([curr_lon], [curr_lat], 'go')
@@ -152,9 +153,9 @@ def main():
     args = parse_args()
 
     if not download:
-        print(f"Calculate approximate total size of the data to be downloaded for {args.city}")
+        logger.info(f"Calculate approximate total size of the data to be downloaded for {args.city}")
     else:
-        print(f"Download the street views for {args.city}")
+        logger.info(f"Download the street views for {args.city}")
 
     osm_data = get_osm_data(args.city, args.alternative_server)
 
@@ -163,7 +164,7 @@ def main():
         test_route = 0
         if args.rand:
             test_route = randrange(0, len(routes)-1, 1)
-        verbose_info(f"Handle route #{test_route:d}")
+        logger.verbose(f"Handle route #{test_route:d}")
         routes = routes[test_route:test_route + 1]
 
     images_dir = None
@@ -171,14 +172,14 @@ def main():
         images_dir = create_download_dir(args.city)
 
     if not download:
-        print("Counting... ", end="", flush=True)
+        logger.info("Counting... ", end="", flush=True)
     else:
-        print("Downloading... ", end="", flush=True)
+        logger.info("Downloading... ", end="", flush=True)
 
     street_views_count = walk_the_routes(args.fov, args.step, images_dir, routes)
 
     if not download:
-        print(f"Total images to download: {street_views_count*2:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")
+        logger.info(f"Total images to download: {street_views_count*2:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")
 
 
 main()
