@@ -11,12 +11,16 @@ from matplotlib import pyplot
 from debugplot import is_plot
 
 
+def streetview_check_key():
+    _google_api_key()
+
+
 def streetview_available(lat, lon, radius, debug=False):
     session = _get_session("meta")
     google_meta_api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     meta_request_params = {
         "location": f"{lat:f},{lon:f}",
-        "key": KEY,
+        "key": _google_api_key(),
         "radius": radius
     }
     r = session.get(google_meta_api_url, params=meta_request_params)
@@ -37,7 +41,7 @@ def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debu
     view_request_params = {
         "location": f"{lat:f}, {lon:f}",
         "size": "640x480",
-        "key": KEY,
+        "key": _google_api_key(),
         "fov": fov,
         "heading": f"{heading:f}",
         "radius": radius
@@ -71,9 +75,6 @@ def _get_session(session_type):
 def _google_api_key():
     api_key = os.getenv('GOOGLE_API_KEY')
     if not api_key:
-        logging.info("No GOOGLE_API_KEY env variable provided...")
+        logging.error("No GOOGLE_API_KEY env variable provided!")
         sys.exit(1)
     return api_key
-
-
-KEY = _google_api_key()
