@@ -2,20 +2,19 @@ import argparse
 import concurrent.futures
 import math
 import os
+import sys
 from random import randrange
 
 from geographiclib.geodesic import Geodesic
 from matplotlib import patches
 
-from streetviews_grabber.debugplot import is_plot, set_visualize, get_plt
-from streetviews_grabber.streetview import streetview_available, streetview_grab
-from streetviews_grabber.osm import get_osm_data
-import simple_logger
-
+from debugplot import is_plot, set_visualize, get_plt
+from streetview import streetview_available, streetview_grab
+from osm import get_osm_data
+import logging
 
 debug = False
 download = False
-logger = None
 
 
 def get_geoline_props(lat1, lat2, long1, long2):
@@ -66,8 +65,7 @@ def parse_args():
     argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
                                                                     "of interest and the vectors of the available looks")
     args = argparser.parse_args()
-    global debug, download, logger
-    logger = simple_logger.Logger(args.verbose)
+    global debug, download
     set_visualize(args.visualize)
     debug = args.debug
     download = args.download
@@ -75,23 +73,23 @@ def parse_args():
 
 
 def handle_route(fov, images_dir, route, step):
-    logger.verbose(f"Route {route.id:d}")
+    logging.debug("Route %d", route.id)
     milestones = route.get_nodes()
     panos_in_route = 0
     for segment in range(0, len(milestones) - 1):
-        logger.verbose(f"\tSegment {segment:d}")
+        logging.debug("\tSegment %d", segment)
         starting_milestone = milestones[segment]
         ending_milestone = milestones[segment + 1]
         if debug and is_plot():
             get_plt().plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat],
                      'or-')
-        logger.verbose(f"\t\tstart: {starting_milestone.lat:f}, {starting_milestone.lon:f}")
-        logger.verbose(f"\t\tend: {ending_milestone.lat:f}, {ending_milestone.lon:f}")
+        logging.debug("\t\tstart: %f, %f", starting_milestone.lat, starting_milestone.lon)
+        logging.debug("\t\tend: %f, %f", ending_milestone.lat, ending_milestone.lon)
         azimuth, length = get_geoline_props(starting_milestone.lat, ending_milestone.lat, starting_milestone.lon,
                                             ending_milestone.lon)
-        logger.verbose(f"\t\tazimuth: {azimuth:f}")
-        logger.verbose(f"\t\tlength: {length:f}")
-        logger.verbose("\t\tStepping the segment...")
+        logging.debug("\t\tazimuth: %f", azimuth)
+        logging.debug("\t\tlength: %f", length)
+        logging.debug("\t\tStepping the segment...")
         panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir)
         panos_in_route += panos_in_segment
     return panos_in_route
@@ -116,16 +114,16 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
     panos_in_segment = 0
     search_radius = math.ceil(step / 2)
     debug_search_radius = step / 2
-    logger.verbose(f"\t\tStep: {step:.02f}")
-    logger.verbose(f"\t\tSearch radius: {search_radius:.02f}")
+    logging.debug("\t\tStep: %.02f", step)
+    logging.debug("\t\tSearch radius: %.02f", search_radius)
     offset = search_radius
     get_plt().plot(start_point.lon, start_point.lat, 'g^')
     while offset + search_radius < length:
         shifted_geonode = Geodesic.WGS84.Direct(start_point.lat, start_point.lon, azimuth, offset)
         curr_lat = shifted_geonode['lat2']
         curr_lon = shifted_geonode['lon2']
-        logger.verbose(f"\t\t\tHave passed {offset:.02f} meters from the start of the street, "
-                     f"came into {curr_lat:f},{curr_lon:f}")
+        logging.debug("\t\t\tHave passed %.02f meters from the start of the street, came into %f,%f", offset, curr_lat,
+                      curr_lon)
         if debug and is_plot():
             get_plt().plot([curr_lon], [curr_lat], 'go')
             geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, search_radius)['lon2'] - curr_lon
@@ -151,11 +149,20 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
 
 def main():
     args = parse_args()
+    logging.basicConfig(format="%(message)s", stream=sys.stdout)
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        # Supress excessive debug from matplotib and liburl3
+        logging.getLogger('matplotlib.pyplot').setLevel(logging.ERROR)
+        logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
+        logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
 
     if not download:
-        logger.info(f"Calculate approximate total size of the data to be downloaded for {args.city}")
+        logging.info("Calculate approximate total size of the data to be downloaded for %s", args.city)
     else:
-        logger.info(f"Download the street views for {args.city}")
+        logging.info("Download the street views for %s", args.city)
 
     osm_data = get_osm_data(args.city, args.alternative_server)
 
@@ -164,7 +171,7 @@ def main():
         test_route = 0
         if args.rand:
             test_route = randrange(0, len(routes)-1, 1)
-        logger.verbose(f"Handle route #{test_route:d}")
+        logging.debug("Handle route #%d", test_route)
         routes = routes[test_route:test_route + 1]
 
     images_dir = None
@@ -172,14 +179,15 @@ def main():
         images_dir = create_download_dir(args.city)
 
     if not download:
-        logger.info("Counting... ", end="", flush=True)
+        logging.info("Counting... ")
     else:
-        logger.info("Downloading... ", end="", flush=True)
+        logging.info("Downloading... ")
 
     street_views_count = walk_the_routes(args.fov, args.step, images_dir, routes)
 
     if not download:
-        logger.info(f"Total images to download: {street_views_count*2:d}, the size will be ~ {street_views_count*0.05859*2:0.2f} Mb")
+        logging.info("Total images to download: %d, the size will be ~ %0.2f Mb", street_views_count * 2,
+                     street_views_count * 0.05859 * 2)
 
 
 main()
