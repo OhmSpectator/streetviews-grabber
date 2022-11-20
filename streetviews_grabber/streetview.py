@@ -6,9 +6,7 @@ import sys
 
 import requests
 from geographiclib.geodesic import Geodesic
-from matplotlib import pyplot
-
-from debugplot import is_plot
+from debugplot import is_plot, get_plt
 
 
 def streetview_check_key():
@@ -31,7 +29,7 @@ def streetview_available(lat, lon, radius, debug=False):
     if image_meta['copyright'] != "© Google":
         return None
     if debug and is_plot():
-        pyplot.plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
+        get_plt().plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
     return image_meta['pano_id']
 
 
@@ -58,7 +56,7 @@ def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debu
         meters_in_lon = Geodesic.WGS84.Direct(lat, lon, 90, 1)['lon2'] - lon
         meters_in_lat = Geodesic.WGS84.Direct(lat, lon, 0, 1)['lat2'] - lat
         ratio = meters_in_lat / meters_in_lon
-        pyplot.quiver(lon, lat, u * ratio, v)
+        get_plt().quiver(lon, lat, u * ratio, v)
 
 
 sessions = {}
