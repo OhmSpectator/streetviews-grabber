@@ -131,7 +131,7 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
             get_plt().gca().add_patch(search_area)
 
         offset += step
-        pano_id = streetview_available(curr_lat, curr_lon, search_radius)
+        pano_id = streetview_available(curr_lat, curr_lon, search_radius, debug)
         if not pano_id:
             continue
         panos_in_segment += 1
