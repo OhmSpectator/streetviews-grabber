@@ -113,7 +113,6 @@ def walk_the_routes(fov, step, images_dir, routes):
 def walk_segment(start_point, length, azimuth, fov, step, images_dir):
     panos_in_segment = 0
     search_radius = math.ceil(step / 2)
-    debug_search_radius = step / 2
     logging.debug("\t\tStep: %.02f", step)
     logging.debug("\t\tSearch radius: %.02f", search_radius)
     offset = search_radius
@@ -129,11 +128,6 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
             geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, search_radius)['lon2'] - curr_lon
             geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, search_radius)['lat2'] - curr_lat
             search_area = patches.Ellipse((curr_lon, curr_lat), geo_radius_lon * 2, geo_radius_lat * 2, fill=False, color='b')
-            get_plt().gca().add_patch(search_area)
-
-            debug_geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, debug_search_radius)['lon2'] - curr_lon
-            debug_geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, debug_search_radius)['lat2'] - curr_lat
-            search_area = patches.Ellipse((curr_lon, curr_lat), debug_geo_radius_lon * 2, debug_geo_radius_lat * 2, fill=False, color='r')
             get_plt().gca().add_patch(search_area)
 
         offset += step
