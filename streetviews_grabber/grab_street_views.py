@@ -8,7 +8,7 @@ from random import randrange
 from geographiclib.geodesic import Geodesic
 from matplotlib import patches
 
-from debugplot import is_plot, set_visualize, get_plt
+from debugplot import is_plot, set_visualize, get_plt, plot_init
 from streetview import streetview_available, streetview_grab, streetview_check_key
 from osm import get_osm_data
 import logging
@@ -160,6 +160,8 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
 
     streetview_check_key()
+
+    plot_init()
 
     if not download:
         logging.info("Calculate approximate total size of the data to be downloaded for %s", args.city)
