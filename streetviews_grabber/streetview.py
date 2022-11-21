@@ -34,7 +34,7 @@ def streetview_available(lat, lon, radius, debug=False, plot=False):
 
 
 def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debug=False, plot=False):
-    session = _get_session("12")
+    session = _get_session("streetview")
     google_api_url = "https://maps.googleapis.com/maps/api/streetview"
     view_request_params = {
         "location": f"{lat:f}, {lon:f}",
