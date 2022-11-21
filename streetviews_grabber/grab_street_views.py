@@ -1,20 +1,21 @@
 import argparse
 import concurrent.futures
+import logging
 import math
 import os
 import sys
 from random import randrange
 
 from geographiclib.geodesic import Geodesic
-from matplotlib import patches
+import matplotlib.pyplot as plt
+import matplotlib
 
-from debugplot import is_plot, set_visualize, get_plt, plot_init
-from streetview import streetview_available, streetview_grab, streetview_check_key
+import streetview
 from osm import get_osm_data
-import logging
 
 debug = False
 download = False
+plot = False
 
 
 def get_geoline_props(lat1, lat2, long1, long2):
@@ -27,11 +28,11 @@ def get_geoline_props(lat1, lat2, long1, long2):
 def look_around(lat, lon, forward_heading, fov, radius, images_dir, uniq_id):
     heading_left = forward_heading - 90
     filename = f"{uniq_id}-left.jpeg"
-    streetview_grab(lat, lon, heading_left, fov, radius, images_dir, filename, debug)
+    streetview.streetview_grab(lat, lon, heading_left, fov, radius, images_dir, filename, debug, plot)
 
     heading_right = forward_heading + 90
     filename = f"{uniq_id}-right.jpeg"
-    streetview_grab(lat, lon, heading_right, fov, radius, images_dir, filename, debug)
+    streetview.streetview_grab(lat, lon, heading_right, fov, radius, images_dir, filename, debug, plot)
 
 
 def create_download_dir(city):
@@ -65,8 +66,8 @@ def parse_args():
     argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
                                                                     "of interest and the vectors of the available looks")
     args = argparser.parse_args()
-    global debug, download
-    set_visualize(args.visualize)
+    global debug, download, plot
+    plot = args.visualize
     debug = args.debug
     download = args.download
     return args
@@ -80,8 +81,9 @@ def handle_route(fov, images_dir, route, step):
         logging.debug("\tSegment %d", segment)
         starting_milestone = milestones[segment]
         ending_milestone = milestones[segment + 1]
-        if debug and is_plot():
-            get_plt().plot([starting_milestone.lon, ending_milestone.lon], [starting_milestone.lat, ending_milestone.lat],
+        if debug and plot:
+            plt.plot([starting_milestone.lon, ending_milestone.lon],
+                     [starting_milestone.lat, ending_milestone.lat],
                      'or-')
         logging.debug("\t\tstart: %f, %f", starting_milestone.lat, starting_milestone.lon)
         logging.debug("\t\tend: %f, %f", ending_milestone.lat, ending_milestone.lon)
@@ -101,12 +103,12 @@ def walk_the_routes(fov, step, images_dir, routes):
         futures = {executor.submit(handle_route, fov, images_dir, route, step) for route in routes}
         for future in concurrent.futures.as_completed(futures):
             panos += future.result()
-    if debug and is_plot():
-        get_plt().title('The Segments')
-        get_plt().xlabel('Longitude')
-        get_plt().ylabel('Latitude')
-        get_plt().axis('equal')
-        get_plt().show()
+    if debug and plot:
+        plt.title('The Segments')
+        plt.xlabel('Longitude')
+        plt.ylabel('Latitude')
+        plt.axis('equal')
+        plt.show()
     return panos
 
 
@@ -116,22 +118,23 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
     logging.debug("\t\tStep: %.02f", step)
     logging.debug("\t\tSearch radius: %.02f", search_radius)
     offset = search_radius
-    get_plt().plot(start_point.lon, start_point.lat, 'g^')
+    plt.plot(start_point.lon, start_point.lat, 'g^')
     while offset + search_radius < length:
         shifted_geonode = Geodesic.WGS84.Direct(start_point.lat, start_point.lon, azimuth, offset)
         curr_lat = shifted_geonode['lat2']
         curr_lon = shifted_geonode['lon2']
         logging.debug("\t\t\tHave passed %.02f meters from the start of the street, came into %f,%f", offset, curr_lat,
                       curr_lon)
-        if debug and is_plot():
-            get_plt().plot([curr_lon], [curr_lat], 'go')
+        if debug and plot:
+            plt.plot([curr_lon], [curr_lat], 'go')
             geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, search_radius)['lon2'] - curr_lon
             geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, search_radius)['lat2'] - curr_lat
-            search_area = patches.Ellipse((curr_lon, curr_lat), geo_radius_lon * 2, geo_radius_lat * 2, fill=False, color='b')
-            get_plt().gca().add_patch(search_area)
+            search_area = matplotlib.patches.Ellipse((curr_lon, curr_lat), geo_radius_lon * 2, geo_radius_lat * 2,
+                                              fill=False, color='b')
+            plt.gca().add_patch(search_area)
 
         offset += step
-        pano_id = streetview_available(curr_lat, curr_lon, search_radius, debug)
+        pano_id = streetview.streetview_available(curr_lat, curr_lon, search_radius, debug, plot)
         if not pano_id:
             continue
         panos_in_segment += 1
@@ -147,15 +150,15 @@ def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
         # Supress excessive debug from matplotib and liburl3
-        logging.getLogger('matplotlib.pyplot').setLevel(logging.ERROR)
+        logging.getLogger('plt').setLevel(logging.ERROR)
         logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
         logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
     else:
         logging.getLogger().setLevel(logging.INFO)
 
-    streetview_check_key()
+    streetview.streetview_check_key()
 
-    plot_init()
+    plt.plot()
 
     if not download:
         logging.info("Calculate approximate total size of the data to be downloaded for %s", args.city)

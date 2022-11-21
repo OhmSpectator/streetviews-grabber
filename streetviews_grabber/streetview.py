@@ -4,16 +4,16 @@ import math
 import os
 import sys
 
-import requests
 from geographiclib.geodesic import Geodesic
-from debugplot import is_plot, get_plt
+import matplotlib.pyplot as plt
+import requests
 
 
 def streetview_check_key():
     _google_api_key()
 
 
-def streetview_available(lat, lon, radius, debug=False):
+def streetview_available(lat, lon, radius, debug=False, plot=False):
     session = _get_session("meta")
     google_meta_api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     meta_request_params = {
@@ -28,12 +28,12 @@ def streetview_available(lat, lon, radius, debug=False):
         return None
     if image_meta['copyright'] != "© Google":
         return None
-    if debug and is_plot():
-        get_plt().plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
+    if debug and plot:
+        plt.plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
     return image_meta['pano_id']
 
 
-def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debug=False):
+def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debug=False, plot=False):
     session = _get_session("12")
     google_api_url = "https://maps.googleapis.com/maps/api/streetview"
     view_request_params = {
@@ -50,13 +50,13 @@ def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debu
     logging.debug("\t\t\t\tFile to save: %s", full_file)
     with open(full_file, 'wb') as image_file:
         image_file.write(r.content)
-    if debug and is_plot():
+    if debug and plot:
         v = math.cos(math.radians(heading))
         u = math.sin(math.radians(heading))
         meters_in_lon = Geodesic.WGS84.Direct(lat, lon, 90, 1)['lon2'] - lon
         meters_in_lat = Geodesic.WGS84.Direct(lat, lon, 0, 1)['lat2'] - lat
         ratio = meters_in_lat / meters_in_lon
-        get_plt().quiver(lon, lat, u * ratio, v)
+        plt.quiver(lon, lat, u * ratio, v)
 
 
 sessions = {}
