@@ -12,10 +12,7 @@ import matplotlib
 
 import streetview
 from osm import get_osm_data
-
-debug = False
-download = False
-plot = False
+import context
 
 
 def get_geoline_props(lat1, lat2, long1, long2):
@@ -25,14 +22,17 @@ def get_geoline_props(lat1, lat2, long1, long2):
     return azimuth, length
 
 
-def look_around(lat, lon, forward_heading, fov, radius, images_dir, uniq_id):
+def look_around(lat, lon, forward_heading, fov, radius, images_dir, uniq_id,
+                ctx):
     heading_left = forward_heading - 90
     filename = f"{uniq_id}-left.jpeg"
-    streetview.streetview_grab(lat, lon, heading_left, fov, radius, images_dir, filename, debug, plot)
+    streetview.streetview_grab(lat, lon, heading_left, fov, radius,
+                               images_dir, filename, ctx)
 
     heading_right = forward_heading + 90
     filename = f"{uniq_id}-right.jpeg"
-    streetview.streetview_grab(lat, lon, heading_right, fov, radius, images_dir, filename, debug, plot)
+    streetview.streetview_grab(lat, lon, heading_right, fov, radius,
+                               images_dir, filename, ctx)
 
 
 def create_download_dir(city):
@@ -66,14 +66,10 @@ def parse_args():
     argparser.add_argument("--visualize", action="store_true", help="visualize the walking process: show all the points "
                                                                     "of interest and the vectors of the available looks")
     args = argparser.parse_args()
-    global debug, download, plot
-    plot = args.visualize
-    debug = args.debug
-    download = args.download
     return args
 
 
-def handle_route(fov, images_dir, route, step):
+def handle_route(fov, images_dir, route, step, ctx):
     logging.debug("Route %d", route.id)
     milestones = route.get_nodes()
     panos_in_route = 0
@@ -81,7 +77,7 @@ def handle_route(fov, images_dir, route, step):
         logging.debug("\tSegment %d", segment)
         starting_milestone = milestones[segment]
         ending_milestone = milestones[segment + 1]
-        if debug and plot:
+        if ctx.debug and ctx.plot:
             plt.plot([starting_milestone.lon, ending_milestone.lon],
                      [starting_milestone.lat, ending_milestone.lat],
                      'or-')
@@ -92,18 +88,20 @@ def handle_route(fov, images_dir, route, step):
         logging.debug("\t\tazimuth: %f", azimuth)
         logging.debug("\t\tlength: %f", length)
         logging.debug("\t\tStepping the segment...")
-        panos_in_segment = walk_segment(starting_milestone, length, azimuth, fov, step, images_dir)
+        panos_in_segment = walk_segment(starting_milestone, length, azimuth,
+                                        fov, step, images_dir, ctx)
         panos_in_route += panos_in_segment
     return panos_in_route
 
 
-def walk_the_routes(fov, step, images_dir, routes):
+def walk_the_routes(fov, step, images_dir, routes, ctx):
     panos = 0
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = {executor.submit(handle_route, fov, images_dir, route, step) for route in routes}
+        futures = {executor.submit(handle_route, fov, images_dir, route,
+                                   step, ctx) for route in routes}
         for future in concurrent.futures.as_completed(futures):
             panos += future.result()
-    if debug and plot:
+    if ctx.debug and ctx.plot:
         plt.title('The Segments')
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
@@ -112,7 +110,7 @@ def walk_the_routes(fov, step, images_dir, routes):
     return panos
 
 
-def walk_segment(start_point, length, azimuth, fov, step, images_dir):
+def walk_segment(start_point, length, azimuth, fov, step, images_dir, ctx):
     panos_in_segment = 0
     search_radius = math.ceil(step / 2)
     logging.debug("\t\tStep: %.02f", step)
@@ -125,7 +123,7 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
         curr_lon = shifted_geonode['lon2']
         logging.debug("\t\t\tHave passed %.02f meters from the start of the street, came into %f,%f", offset, curr_lat,
                       curr_lon)
-        if debug and plot:
+        if ctx.debug and ctx.plot:
             plt.plot([curr_lon], [curr_lat], 'go')
             geo_radius_lon = Geodesic.WGS84.Direct(curr_lat, curr_lon, 90, search_radius)['lon2'] - curr_lon
             geo_radius_lat = Geodesic.WGS84.Direct(curr_lat, curr_lon, 0, search_radius)['lat2'] - curr_lat
@@ -134,18 +132,20 @@ def walk_segment(start_point, length, azimuth, fov, step, images_dir):
             plt.gca().add_patch(search_area)
 
         offset += step
-        pano_id = streetview.streetview_available(curr_lat, curr_lon, search_radius, debug, plot)
+        pano_id = streetview.streetview_available(curr_lat, curr_lon,
+                                                  search_radius, ctx)
         if not pano_id:
             continue
         panos_in_segment += 1
-        if download:
+        if ctx.download:
             assert images_dir
-            look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, pano_id)
+            look_around(curr_lat, curr_lon, azimuth, fov, search_radius, images_dir, pano_id, ctx)
     return panos_in_segment
 
 
 def main():
     args = parse_args()
+    ctx = context.Context(args.debug, args.download, args.visualize)
     logging.basicConfig(format="%(message)s", stream=sys.stdout)
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -160,7 +160,7 @@ def main():
 
     plt.plot()
 
-    if not download:
+    if not ctx.download:
         logging.info("Calculate approximate total size of the data to be downloaded for %s", args.city)
     else:
         logging.info("Download the street views for %s", args.city)
@@ -168,7 +168,7 @@ def main():
     osm_data = get_osm_data(args.city, args.alternative_server)
 
     routes = osm_data.ways
-    if debug:
+    if ctx.debug:
         test_route = 0
         if args.rand:
             test_route = randrange(0, len(routes)-1, 1)
@@ -176,19 +176,20 @@ def main():
         routes = routes[test_route:test_route + 1]
 
     images_dir = None
-    if download:
+    if ctx.download:
         images_dir = create_download_dir(args.city)
 
-    if not download:
+    if not ctx.download:
         logging.info("Counting... ")
     else:
         logging.info("Downloading... ")
 
-    street_views_count = walk_the_routes(args.fov, args.step, images_dir, routes)
+    street_views_count = walk_the_routes(args.fov, args.step, images_dir,
+                                         routes, ctx)
 
-    if not download:
+    if not ctx.download:
         logging.info("Total images to download: %d, the size will be ~ %0.2f Mb", street_views_count * 2,
                      street_views_count * 0.05859 * 2)
 
-
-main()
+if __name__ == "__main__":
+    main()

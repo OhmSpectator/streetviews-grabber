@@ -13,7 +13,7 @@ def streetview_check_key():
     _google_api_key()
 
 
-def streetview_available(lat, lon, radius, debug=False, plot=False):
+def streetview_available(lat, lon, radius, ctx):
     session = _get_session("meta")
     google_meta_api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
     meta_request_params = {
@@ -28,12 +28,13 @@ def streetview_available(lat, lon, radius, debug=False, plot=False):
         return None
     if image_meta['copyright'] != "© Google":
         return None
-    if debug and plot:
+    if ctx.debug and ctx.plot:
         plt.plot(image_meta['location']['lng'], image_meta['location']['lat'], 'b*')
     return image_meta['pano_id']
 
 
-def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debug=False, plot=False):
+def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename,
+                    ctx):
     session = _get_session("streetview")
     google_api_url = "https://maps.googleapis.com/maps/api/streetview"
     view_request_params = {
@@ -50,7 +51,7 @@ def streetview_grab(lat, lon, heading, fov, radius, download_dir, filename, debu
     logging.debug("\t\t\t\tFile to save: %s", full_file)
     with open(full_file, 'wb') as image_file:
         image_file.write(r.content)
-    if debug and plot:
+    if ctx.debug and ctx.plot:
         v = math.cos(math.radians(heading))
         u = math.sin(math.radians(heading))
         meters_in_lon = Geodesic.WGS84.Direct(lat, lon, 90, 1)['lon2'] - lon
