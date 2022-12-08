@@ -6,7 +6,7 @@ import overpy
 
 def get_osm_data(city, alternative_server):
     query = f"""
-    area[name="{city}"];
+    area[name="{city}"][1];
     (way["highway"](area); >;);
     out skel;
     """
